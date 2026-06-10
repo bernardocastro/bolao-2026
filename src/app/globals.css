@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Dark por padrão — verde floresta + preto + branco */
+    --background: 150 30% 4%;
+    --foreground: 150 10% 96%;
+    --card: 150 25% 7%;
+    --card-foreground: 150 10% 96%;
+    --popover: 150 25% 6%;
+    --popover-foreground: 150 10% 96%;
+    --primary: 145 80% 40%;
+    --primary-foreground: 150 30% 4%;
+    --secondary: 150 18% 12%;
+    --secondary-foreground: 150 10% 92%;
+    --muted: 150 15% 12%;
+    --muted-foreground: 150 8% 60%;
+    --accent: 145 60% 16%;
+    --accent-foreground: 145 70% 85%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 150 15% 14%;
+    --input: 150 15% 16%;
+    --ring: 145 80% 40%;
+    --gold: 43 90% 55%;
+    --radius: 0.75rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, hsl(145 80% 40% / 0.08), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 100%, hsl(145 80% 30% / 0.04), transparent);
+    background-attachment: fixed;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-secondary;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .glass {
+    @apply border border-white/5 bg-card/70 backdrop-blur-xl;
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* ── Estética de placar de estádio (landing) ─────────── */
+@layer components {
+  .led-panel {
+    background: linear-gradient(180deg, hsl(150 35% 3%), hsl(150 30% 5%));
+    border-top: 1px solid hsl(145 60% 25% / 0.4);
+    border-bottom: 1px solid hsl(145 60% 25% / 0.4);
+    box-shadow: inset 0 0 24px hsl(145 80% 40% / 0.08);
+  }
+
+  .led-text {
+    @apply font-mono text-sm font-bold uppercase;
+    display: inline-block;
+    letter-spacing: 0.3em;
+    color: hsl(145 75% 55%);
+    text-shadow:
+      0 0 6px hsl(145 80% 45% / 0.9),
+      0 0 18px hsl(145 80% 40% / 0.45);
+  }
+
+  .led-scanlines {
+    background: repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 2px,
+      rgb(0 0 0 / 0.22) 2px,
+      rgb(0 0 0 / 0.22) 3px
+    );
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: inline-block;
+  animation: marquee 45s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}

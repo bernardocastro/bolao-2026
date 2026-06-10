@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bolao-postgres
+    environment:
+      POSTGRES_USER: bolao
+      POSTGRES_PASSWORD: bolao_secret
+      POSTGRES_DB: bolao2026
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U bolao -d bolao2026']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: bolao-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+    container_name: bolao-web
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://bolao:bolao_secret@postgres:5432/bolao2026?schema=public
+      REDIS_URL: redis://redis:6379
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  realtime:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: realtime
+    container_name: bolao-realtime
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://bolao:bolao_secret@postgres:5432/bolao2026?schema=public
+      REDIS_URL: redis://redis:6379
+    ports:
+      - '3001:3001'
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:

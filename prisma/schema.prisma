@@ -1,0 +1,358 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────── USERS & AUTH ───────────────────────────
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  username     String   @unique
+  name         String
+  bio          String?  @db.VarChar(160)
+  avatarUrl    String?
+  passwordHash String?
+  googleId     String?  @unique
+  role         UserRole @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  refreshTokens      RefreshToken[]
+  passwordResets     PasswordResetToken[]
+  poolMemberships    PoolMember[]
+  ownedPools         Pool[]               @relation("PoolOwner")
+  bets               Bet[]
+  feedPosts          FeedPost[]
+  comments           Comment[]
+  reactions          Reaction[]
+  notifications      Notification[]
+  achievements       UserAchievement[]
+  rankingSnapshots   RankingSnapshot[]
+
+  @@index([username])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  userAgent String?
+  ip        String?
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ─────────────────────────── TOURNAMENT ───────────────────────────
+
+enum MatchStage {
+  GROUP
+  ROUND_OF_32
+  ROUND_OF_16
+  QUARTER_FINAL
+  SEMI_FINAL
+  THIRD_PLACE
+  FINAL
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+  POSTPONED
+}
+
+model Team {
+  id        String  @id @default(cuid())
+  name      String
+  code      String  @unique // ISO ex: BRA
+  flagUrl   String
+  groupName String? // "A".."L"
+
+  homeMatches Match[] @relation("HomeTeam")
+  awayMatches Match[] @relation("AwayTeam")
+  standings   Standing[]
+}
+
+model Match {
+  id          String      @id @default(cuid())
+  externalId  String?     @unique // id no provider de dados
+  stage       MatchStage
+  round       Int // rodada dentro da fase (1..3 na fase de grupos)
+  groupName   String?
+  kickoffAt   DateTime // sempre UTC
+  venue       String?
+  status      MatchStatus @default(SCHEDULED)
+  homeTeamId  String
+  awayTeamId  String
+  homeTeam    Team        @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam    Team        @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  homeScore   Int?
+  awayScore   Int?
+  // mata-mata: vencedor nos pênaltis quando empate
+  penaltyWinnerTeamId String?
+  scoredAt    DateTime? // quando a pontuação foi processada
+
+  bets Bet[]
+
+  @@index([kickoffAt])
+  @@index([status])
+  @@index([stage, round])
+}
+
+model Standing {
+  id           String @id @default(cuid())
+  teamId       String
+  team         Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  groupName    String
+  played       Int    @default(0)
+  won          Int    @default(0)
+  drawn        Int    @default(0)
+  lost         Int    @default(0)
+  goalsFor     Int    @default(0)
+  goalsAgainst Int    @default(0)
+  points       Int    @default(0)
+
+  @@unique([teamId, groupName])
+  @@index([groupName])
+}
+
+// ─────────────────────────── POOLS (BOLÕES) ───────────────────────────
+
+enum PoolRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model Pool {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.VarChar(280)
+  slug        String   @unique
+  inviteCode  String   @unique
+  isPrivate   Boolean  @default(true)
+  maxMembers  Int      @default(100)
+  avatarUrl   String?
+  ownerId     String
+  owner       User     @relation("PoolOwner", fields: [ownerId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Regras de pontuação configuráveis
+  pointsExactScore    Int @default(10)
+  pointsCorrectWinner Int @default(5)
+  pointsGoalDiff      Int @default(7)
+  bonusUnderdog       Int @default(3) // acertou zebra
+  bonusUniqueHit      Int @default(2) // único a acertar no bolão
+
+  members   PoolMember[]
+  bets      Bet[]
+  feedPosts FeedPost[]
+  snapshots RankingSnapshot[]
+
+  @@index([inviteCode])
+}
+
+model PoolMember {
+  id       String   @id @default(cuid())
+  poolId   String
+  pool     Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     PoolRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  // agregados (cache de performance)
+  totalPoints  Int @default(0)
+  exactScores  Int @default(0)
+  correctWinners Int @default(0)
+  currentRank  Int?
+  previousRank Int?
+  streak       Int @default(0) // acertos consecutivos
+
+  @@unique([poolId, userId])
+  @@index([poolId, totalPoints(sort: Desc)])
+}
+
+// ─────────────────────────── BETS (PALPITES) ───────────────────────────
+
+enum BetStatus {
+  PENDING
+  SCORED
+}
+
+model Bet {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  poolId        String
+  pool          Pool      @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  matchId       String
+  match         Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  homeScore     Int
+  awayScore     Int
+  // mata-mata: time que avança em caso de empate no tempo normal
+  advancingTeamId String?
+  status        BetStatus @default(PENDING)
+  pointsEarned  Int       @default(0)
+  isExactScore  Boolean   @default(false)
+  isCorrectWinner Boolean @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([userId, poolId, matchId])
+  @@index([matchId])
+  @@index([poolId, matchId])
+  @@index([userId, poolId])
+}
+
+// ─────────────────────────── RANKING ───────────────────────────
+
+model RankingSnapshot {
+  id        String   @id @default(cuid())
+  poolId    String
+  pool      Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  round     Int // rodada / "matchday" sequencial
+  points    Int
+  rank      Int
+  createdAt DateTime @default(now())
+
+  @@unique([poolId, userId, round])
+  @@index([poolId, round])
+}
+
+// ─────────────────────────── SOCIAL FEED ───────────────────────────
+
+enum FeedPostType {
+  EXACT_SCORE_HIT
+  UNIQUE_HIT
+  RANK_UP
+  RANK_DOWN
+  ACHIEVEMENT
+  MEMBER_JOINED
+  POOL_CREATED
+  USER_POST
+  MATCH_RESULT
+}
+
+model FeedPost {
+  id        String       @id @default(cuid())
+  type      FeedPostType
+  poolId    String
+  pool      Pool         @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  actorId   String?
+  actor     User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  content   String       @db.VarChar(500)
+  metadata  Json? // ex.: { matchId, score, rankFrom, rankTo, achievementCode }
+  createdAt DateTime     @default(now())
+
+  comments  Comment[]
+  reactions Reaction[]
+
+  @@index([poolId, createdAt(sort: Desc)])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content   String   @db.VarChar(500)
+  hiddenAt  DateTime? // moderação
+  createdAt DateTime @default(now())
+
+  @@index([postId, createdAt])
+}
+
+model Reaction {
+  id     String @id @default(cuid())
+  postId String
+  post   FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji  String // "🔥" "⚽" "😂" "👏" "❤️"
+
+  @@unique([postId, userId, emoji])
+  @@index([postId])
+}
+
+// ─────────────────────────── ACHIEVEMENTS ───────────────────────────
+
+model Achievement {
+  id          String @id @default(cuid())
+  code        String @unique // PROPHET, ON_FIRE, ZEBRA_MASTER, KNOCKOUT_KING, SHARPSHOOTER
+  name        String
+  description String
+  icon        String // nome do ícone lucide
+  tier        Int    @default(1)
+
+  users UserAchievement[]
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  unlockedAt    DateTime    @default(now())
+
+  @@unique([userId, achievementId])
+}
+
+// ─────────────────────────── NOTIFICATIONS ───────────────────────────
+
+enum NotificationType {
+  RANK_CHANGE
+  MEMBER_JOINED
+  BET_CLOSING_SOON
+  MATCH_SCORED
+  ACHIEVEMENT_UNLOCKED
+  COMMENT_REPLY
+  GENERIC
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, readAt])
+}
