@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { ZodError, type ZodSchema } from 'zod';
+import { ZodError, type ZodTypeAny, type z } from 'zod';
 import { UnauthorizedError, ForbiddenError } from '@/lib/session';
 
 export class ApiError extends Error {
@@ -43,11 +43,14 @@ export function withErrorHandling<Ctx>(handler: Handler<Ctx>): Handler<Ctx> {
   };
 }
 
-export async function parseBody<T>(req: Request, schema: ZodSchema<T>): Promise<T> {
+export async function parseBody<S extends ZodTypeAny>(
+  req: Request,
+  schema: S,
+): Promise<z.output<S>> {
   const body: unknown = await req.json().catch(() => {
     throw new ApiError(400, 'JSON inválido');
   });
-  return schema.parse(body);
+  return schema.parse(body) as z.output<S>;
 }
 
 export function json<T>(data: T, init?: ResponseInit): NextResponse {
