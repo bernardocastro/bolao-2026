@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import argon2 from 'argon2';
+import bcrypt from 'bcryptjs';
 import { nanoid } from 'nanoid';
 import { prisma } from '@/lib/prisma';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '@/lib/jwt';
@@ -62,7 +62,7 @@ export const authService = {
         name: input.name,
         username: input.username,
         email: input.email,
-        passwordHash: await argon2.hash(input.password),
+        passwordHash: await bcrypt.hash(input.password, 12),
         avatarUrl: `https://api.dicebear.com/9.x/thumbs/png?seed=${input.username}`,
       },
     });
@@ -72,7 +72,7 @@ export const authService = {
   async login(input: LoginInput, meta?: { userAgent?: string; ip?: string }): Promise<AuthResult> {
     const user = await prisma.user.findUnique({ where: { email: input.email } });
     if (!user?.passwordHash) throw new ApiError(401, 'Credenciais inválidas');
-    const valid = await argon2.verify(user.passwordHash, input.password);
+    const valid = await bcrypt.compare(input.password, user.passwordHash);
     if (!valid) throw new ApiError(401, 'Credenciais inválidas');
     return { user: toPublicUser(user), tokens: await issueTokens(user, meta) };
   },
@@ -138,7 +138,7 @@ export const authService = {
     await prisma.$transaction([
       prisma.user.update({
         where: { id: stored.userId },
-        data: { passwordHash: await argon2.hash(password) },
+        data: { passwordHash: await bcrypt.hash(password, 12) },
       }),
       prisma.passwordResetToken.update({ where: { id: stored.id }, data: { usedAt: new Date() } }),
       prisma.refreshToken.updateMany({

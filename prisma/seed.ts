@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import { PrismaClient, MatchStage } from '@prisma/client';
-import argon2 from 'argon2';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -236,7 +236,7 @@ async function main() {
   console.info(`⚽ ${await prisma.match.count()} partidas (fase de grupos oficial)`);
 
   // Usuários demo
-  const password = await argon2.hash('senha123');
+  const password = await bcrypt.hash('senha123', 12);
   const usersData = [
     { email: 'admin@bolao2026.app', username: 'admin', name: 'Admin', role: 'ADMIN' as const, bio: 'Comissário técnico do sistema' },
     { email: 'joao@example.com', username: 'joao10', name: 'João Silva', role: 'USER' as const, bio: 'Hexa vem! 🇧🇷' },
@@ -248,7 +248,7 @@ async function main() {
     users.push(
       await prisma.user.upsert({
         where: { email: u.email },
-        update: {},
+        update: { passwordHash: password }, // migra hashes antigos para bcrypt
         create: {
           ...u,
           passwordHash: password,
