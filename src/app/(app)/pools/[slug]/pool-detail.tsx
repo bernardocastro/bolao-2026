@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Copy, Share2, Users, Settings } from 'lucide-react';
+import { Copy, Share2, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { LiveRanking } from '@/components/features/live-ranking';
 import { PoolFeed } from './pool-feed';
+import { PoolRulesDialog, PoolSettingsDialog } from './pool-settings';
 import { PoolBets } from './pool-bets';
 
 interface PoolDetailProps {
@@ -67,11 +68,8 @@ export function PoolDetail({ pool, currentUserId, isAdmin }: PoolDetailProps) {
           <Button variant="outline" size="sm" onClick={shareRanking}>
             <Share2 className="h-4 w-4" />
           </Button>
-          {isAdmin && (
-            <Button variant="ghost" size="sm" title="Configurações (admin)">
-              <Settings className="h-4 w-4" />
-            </Button>
-          )}
+          <PoolRulesDialog pool={pool} />
+          {isAdmin && <PoolSettingsDialog pool={pool} />}
         </div>
       </div>
 
