@@ -44,7 +44,7 @@ export function PoolFeed({ poolId, currentUserId }: { poolId: string; currentUse
   const posts = data?.pages.flatMap((p) => p.items) ?? [];
 
   if (posts.length === 0) {
-    return <EmptyState icon={Newspaper} title="Feed vazio" description="Os acontecimentos do bolão aparecem aqui: acertos, zoeiras e conquistas." />;
+    return <EmptyState icon={Newspaper} title="Feed vazio" description="Os acontecimentos do bolão aparecem aqui: acertos, resenhas e conquistas." />;
   }
 
   return (

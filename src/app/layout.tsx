@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     'O bolão definitivo da Copa do Mundo 2026. Crie ligas com amigos, faça palpites e dispute o ranking em tempo real.',
   openGraph: {
     title: 'Bolão 2026',
-    description: 'Palpites, rankings ao vivo e zoeira garantida na Copa 2026.',
+    description: 'Palpites, rankings ao vivo e resenha garantida na Copa 2026.',
     type: 'website',
   },
 };

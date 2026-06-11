@@ -43,7 +43,7 @@ export default async function DashboardPage() {
           <EmptyState
             icon={Trophy}
             title="Nenhum bolão ainda"
-            description="Crie o seu ou entre com um código de convite. A zoeira começa aqui."
+            description="Crie o seu ou entre com um código de convite. A resenha começa aqui."
             action={
               <Button asChild>
                 <Link href="/pools/new">Criar meu bolão</Link>

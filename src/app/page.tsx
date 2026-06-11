@@ -55,7 +55,7 @@ export default function LandingPage() {
               O bolão definitivo da <span className="text-primary">Copa 2026</span>
             </h1>
             <p className="max-w-xl text-balance text-lg text-muted-foreground">
-              Palpites, rankings em tempo real, conquistas e muita zoeira. Reúna seus amigos e
+              Palpites, rankings em tempo real, conquistas e muita resenha. Reúna seus amigos e
               descubra quem realmente entende de futebol.
             </p>
             <div className="flex flex-col gap-3 sm:flex-row">
