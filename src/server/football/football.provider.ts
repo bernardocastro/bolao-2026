@@ -147,7 +147,75 @@ class ApiFootballProvider implements FootballProvider {
   }
 }
 
+// ESPN public API — no key required, returns FIFA 3-letter codes directly
+class EspnFootballProvider implements FootballProvider {
+  async fetchMatches(): Promise<ProviderMatch[]> {
+    const from = process.env.ESPN_DATES_FROM ?? '20260611';
+    const to = process.env.ESPN_DATES_TO ?? '20260720';
+    const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${from}-${to}&limit=200`;
+
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`ESPN API respondeu ${res.status}`);
+
+    const data = (await res.json()) as {
+      events: Array<{
+        id: string;
+        date: string;
+        competitions: Array<{
+          status: {
+            type: {
+              name: string;
+              state: string; // "pre" | "in" | "post"
+              completed: boolean;
+            };
+          };
+          competitors: Array<{
+            homeAway: 'home' | 'away';
+            score: string;
+            team: { abbreviation: string };
+          }>;
+        }>;
+      }>;
+    };
+
+    return data.events.map((event) => {
+      const comp = event.competitions[0]!;
+      const statusType = comp.status.type;
+      const home = comp.competitors.find((c) => c.homeAway === 'home');
+      const away = comp.competitors.find((c) => c.homeAway === 'away');
+
+      let status: ProviderMatch['status'];
+      if (statusType.name === 'STATUS_POSTPONED') {
+        status = 'POSTPONED';
+      } else if (statusType.state === 'post' && statusType.completed) {
+        status = 'FINISHED';
+      } else if (statusType.state === 'in') {
+        status = 'LIVE';
+      } else {
+        status = 'SCHEDULED';
+      }
+
+      const isPre = statusType.state === 'pre';
+      const homeScore = home && !isPre ? (parseInt(home.score, 10) ?? null) : null;
+      const awayScore = away && !isPre ? (parseInt(away.score, 10) ?? null) : null;
+
+      return {
+        externalId: `espn_${event.id}`,
+        homeTeamCode: home?.team.abbreviation ?? null,
+        awayTeamCode: away?.team.abbreviation ?? null,
+        kickoffAt: new Date(event.date),
+        status,
+        homeScore: isNaN(homeScore as number) ? null : homeScore,
+        awayScore: isNaN(awayScore as number) ? null : awayScore,
+      };
+    });
+  }
+}
+
 export function getFootballProvider(): FootballProvider {
+  if (process.env.FOOTBALL_PROVIDER === 'espn') {
+    return new EspnFootballProvider();
+  }
   if (process.env.FOOTBALL_PROVIDER === 'api-football' && process.env.FOOTBALL_API_KEY) {
     return new ApiFootballProvider(
       process.env.FOOTBALL_API_KEY,
