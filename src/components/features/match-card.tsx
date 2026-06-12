@@ -1,15 +1,16 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Lock, Check } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { api, ClientApiError } from '@/lib/api-client';
 import { formatKickoff } from '@/lib/utils';
+
+const DEBOUNCE_MS = 800;
 
 export interface MatchDTO {
   id: string;
@@ -77,10 +78,14 @@ function ScoreInput({
   );
 }
 
+type SaveStatus = 'idle' | 'saving' | 'saved';
+
 export function MatchCard({ match, bet, poolId }: MatchCardProps) {
   const queryClient = useQueryClient();
   const [home, setHome] = useState(bet ? String(bet.homeScore) : '');
   const [away, setAway] = useState(bet ? String(bet.awayScore) : '');
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const locked = match.status !== 'SCHEDULED' || new Date(match.kickoffAt) <= new Date();
   const dirty = home !== (bet ? String(bet.homeScore) : '') || away !== (bet ? String(bet.awayScore) : '');
@@ -92,12 +97,28 @@ export function MatchCard({ match, bet, poolId }: MatchCardProps) {
         json: { poolId, matchId: match.id, homeScore: Number(home), awayScore: Number(away) },
       }),
     onSuccess: () => {
-      toast.success('Palpite salvo! ⚽');
+      setSaveStatus('saved');
       void queryClient.invalidateQueries({ queryKey: ['bets', poolId] });
+      timerRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
     },
-    onError: (error) =>
-      toast.error(error instanceof ClientApiError ? error.message : 'Erro ao salvar palpite'),
+    onError: (error) => {
+      setSaveStatus('idle');
+      toast.error(error instanceof ClientApiError ? error.message : 'Erro ao salvar palpite');
+    },
   });
+
+  useEffect(() => {
+    if (locked || !poolId || !dirty || home === '' || away === '') return;
+    setSaveStatus('idle');
+    timerRef.current = setTimeout(() => {
+      setSaveStatus('saving');
+      save.mutate();
+    }, DEBOUNCE_MS);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [home, away]);
 
   return (
     <motion.div
@@ -210,13 +231,25 @@ export function MatchCard({ match, bet, poolId }: MatchCardProps) {
         </div>
       )}
 
-      {!locked && poolId && dirty && home !== '' && away !== '' && (
-        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-3">
-          <Button size="sm" className="w-full" loading={save.isPending} onClick={() => save.mutate()}>
-            <Check className="h-4 w-4" /> Salvar palpite
-          </Button>
-        </motion.div>
-      )}
+      <AnimatePresence>
+        {saveStatus !== 'idle' && (
+          <motion.div
+            key={saveStatus}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-2 flex items-center justify-center gap-1.5 text-xs"
+          >
+            {saveStatus === 'saving' ? (
+              <span className="text-muted-foreground">Salvando…</span>
+            ) : (
+              <span className="flex items-center gap-1 text-green-500">
+                <Check className="h-3 w-3" /> Salvo
+              </span>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
