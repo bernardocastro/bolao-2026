@@ -84,18 +84,28 @@ export const syncService = {
         const swapped = homeId !== undefined && match.homeTeamId !== homeId;
         const homeScore = swapped ? fixture.awayScore : fixture.homeScore;
         const awayScore = swapped ? fixture.homeScore : fixture.awayScore;
+        const oddsHome = swapped ? fixture.oddsAway : fixture.oddsHome;
+        const oddsAway = swapped ? fixture.oddsHome : fixture.oddsAway;
+        const oddsDraw = fixture.oddsDraw;
 
-        // 2) horário remarcado (só antes de começar)
-        if (
-          match.status === 'SCHEDULED' &&
-          fixture.status === 'SCHEDULED' &&
-          match.kickoffAt.getTime() !== fixture.kickoffAt.getTime()
-        ) {
-          await prisma.match.update({
-            where: { id: match.id },
-            data: { kickoffAt: fixture.kickoffAt },
-          });
-          summary.kickoffUpdated++;
+        // 2) horário remarcado e odds (só antes de começar)
+        if (match.status === 'SCHEDULED' && fixture.status === 'SCHEDULED') {
+          const kickoffChanged = match.kickoffAt.getTime() !== fixture.kickoffAt.getTime();
+          const oddsChanged =
+            match.oddsHome !== oddsHome ||
+            match.oddsDraw !== oddsDraw ||
+            match.oddsAway !== oddsAway;
+
+          if (kickoffChanged || oddsChanged) {
+            await prisma.match.update({
+              where: { id: match.id },
+              data: {
+                ...(kickoffChanged ? { kickoffAt: fixture.kickoffAt } : {}),
+                ...(oddsChanged ? { oddsHome, oddsDraw, oddsAway } : {}),
+              },
+            });
+            if (kickoffChanged) summary.kickoffUpdated++;
+          }
         }
 
         // 3) jogo ao vivo: placar parcial em tempo real

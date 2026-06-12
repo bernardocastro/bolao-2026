@@ -23,7 +23,18 @@ export interface MatchDTO {
   awayScore: number | null;
   homeTeam: { id: string; name: string; code: string; flagUrl: string };
   awayTeam: { id: string; name: string; code: string; flagUrl: string };
+  oddsHome: number | null;
+  oddsDraw: number | null;
+  oddsAway: number | null;
 }
+
+/** Converte moneyline americano para odds decimais (ex.: -120 → 1.83, +380 → 4.80) */
+function toDecimal(american: number): string {
+  const dec = american > 0 ? american / 100 + 1 : 100 / Math.abs(american) + 1;
+  return dec.toFixed(2);
+}
+
+const AZARAO_THRESHOLD = 150; // moneyline >= +150 = azarão
 
 export interface BetDTO {
   matchId: string;
@@ -110,16 +121,25 @@ export function MatchCard({ match, bet, poolId }: MatchCardProps) {
       </div>
 
       <div className="flex items-center justify-between gap-2">
-        <div className="flex flex-1 items-center justify-end gap-2 text-right">
-          <span className="hidden text-sm font-semibold sm:block">{match.homeTeam.name}</span>
-          <span className="text-sm font-semibold sm:hidden">{match.homeTeam.code}</span>
-          <Image
-            src={match.homeTeam.flagUrl}
-            alt={match.homeTeam.name}
-            width={32}
-            height={22}
-            className="rounded-sm object-cover"
-          />
+        <div className="flex flex-1 flex-col items-end gap-1">
+          <div className="flex items-center justify-end gap-2">
+            <div className="flex flex-col items-end gap-0.5 text-right">
+              <span className="hidden text-sm font-semibold sm:block">{match.homeTeam.name}</span>
+              <span className="text-sm font-semibold sm:hidden">{match.homeTeam.code}</span>
+              {match.oddsHome !== null && match.oddsHome >= AZARAO_THRESHOLD && (
+                <Badge variant="outline" className="border-amber-500/50 px-1.5 py-0 text-[10px] text-amber-500">
+                  Azarão
+                </Badge>
+              )}
+            </div>
+            <Image
+              src={match.homeTeam.flagUrl}
+              alt={match.homeTeam.name}
+              width={32}
+              height={22}
+              className="rounded-sm object-cover"
+            />
+          </div>
         </div>
 
         <div className="flex items-center gap-1.5 px-1">
@@ -140,18 +160,44 @@ export function MatchCard({ match, bet, poolId }: MatchCardProps) {
           )}
         </div>
 
-        <div className="flex flex-1 items-center gap-2">
-          <Image
-            src={match.awayTeam.flagUrl}
-            alt={match.awayTeam.name}
-            width={32}
-            height={22}
-            className="rounded-sm object-cover"
-          />
-          <span className="hidden text-sm font-semibold sm:block">{match.awayTeam.name}</span>
-          <span className="text-sm font-semibold sm:hidden">{match.awayTeam.code}</span>
+        <div className="flex flex-1 flex-col items-start gap-1">
+          <div className="flex items-center gap-2">
+            <Image
+              src={match.awayTeam.flagUrl}
+              alt={match.awayTeam.name}
+              width={32}
+              height={22}
+              className="rounded-sm object-cover"
+            />
+            <div className="flex flex-col gap-0.5">
+              <span className="hidden text-sm font-semibold sm:block">{match.awayTeam.name}</span>
+              <span className="text-sm font-semibold sm:hidden">{match.awayTeam.code}</span>
+              {match.oddsAway !== null && match.oddsAway >= AZARAO_THRESHOLD && (
+                <Badge variant="outline" className="border-amber-500/50 px-1.5 py-0 text-[10px] text-amber-500">
+                  Azarão
+                </Badge>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {match.status === 'SCHEDULED' && match.oddsHome !== null && match.oddsDraw !== null && match.oddsAway !== null && (
+        <div className="mt-2 flex items-center justify-center gap-1 text-xs text-muted-foreground">
+          <div className="flex flex-1 flex-col items-center gap-0.5 rounded-md bg-secondary/40 py-1.5">
+            <span className="font-mono font-bold text-foreground">{toDecimal(match.oddsHome)}</span>
+            <span>{match.homeTeam.code}</span>
+          </div>
+          <div className="flex flex-1 flex-col items-center gap-0.5 rounded-md bg-secondary/40 py-1.5">
+            <span className="font-mono font-bold text-foreground">{toDecimal(match.oddsDraw)}</span>
+            <span>Empate</span>
+          </div>
+          <div className="flex flex-1 flex-col items-center gap-0.5 rounded-md bg-secondary/40 py-1.5">
+            <span className="font-mono font-bold text-foreground">{toDecimal(match.oddsAway)}</span>
+            <span>{match.awayTeam.code}</span>
+          </div>
+        </div>
+      )}
 
       {bet?.status === 'SCORED' && (
         <div className="mt-3 flex items-center justify-center gap-2 text-sm">

@@ -118,6 +118,10 @@ model Match {
   // mata-mata: vencedor nos pênaltis quando empate
   penaltyWinnerTeamId String?
   scoredAt    DateTime? // quando a pontuação foi processada
+  // odds moneyline americanas (ex.: -120, +380) — nulas após o fim do jogo
+  oddsHome    Int?
+  oddsDraw    Int?
+  oddsAway    Int?
 
   bets Bet[]
 

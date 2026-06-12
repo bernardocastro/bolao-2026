@@ -14,6 +14,10 @@ export interface ProviderMatch {
   status: 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'POSTPONED';
   homeScore: number | null;
   awayScore: number | null;
+  // moneyline americano (ex.: -120, +380); null quando não disponível ou após encerrar
+  oddsHome: number | null;
+  oddsDraw: number | null;
+  oddsAway: number | null;
 }
 
 export interface FootballProvider {
@@ -97,7 +101,6 @@ const FINISHED_STATUSES = new Set(['FT', 'AET', 'PEN']);
 
 class MockFootballProvider implements FootballProvider {
   async fetchMatches(): Promise<ProviderMatch[]> {
-    // Em dev sem API key, os resultados são controlados pelo painel admin.
     return [];
   }
 }
@@ -142,6 +145,9 @@ class ApiFootballProvider implements FootballProvider {
               : 'SCHEDULED',
         homeScore: f.goals.home,
         awayScore: f.goals.away,
+        oddsHome: null,
+        oddsDraw: null,
+        oddsAway: null,
       };
     });
   }
@@ -174,6 +180,13 @@ class EspnFootballProvider implements FootballProvider {
             score: string;
             team: { abbreviation: string };
           }>;
+          odds?: Array<{
+            moneyline?: {
+              home?: { close?: { odds?: string } };
+              draw?: { close?: { odds?: string } };
+              away?: { close?: { odds?: string } };
+            };
+          } | null>;
         }>;
       }>;
     };
@@ -199,6 +212,17 @@ class EspnFootballProvider implements FootballProvider {
       const homeScore = home && !isPre ? (parseInt(home.score, 10) ?? null) : null;
       const awayScore = away && !isPre ? (parseInt(away.score, 10) ?? null) : null;
 
+      const oddsEntry = comp.odds?.[0];
+      const parseOdds = (raw: string | undefined): number | null => {
+        if (!raw) return null;
+        const n = parseInt(raw, 10);
+        return isNaN(n) ? null : n;
+      };
+      // Odds only available for upcoming matches; ESPN drops them after kick-off
+      const oddsHome = isPre ? parseOdds(oddsEntry?.moneyline?.home?.close?.odds) : null;
+      const oddsDraw = isPre ? parseOdds(oddsEntry?.moneyline?.draw?.close?.odds) : null;
+      const oddsAway = isPre ? parseOdds(oddsEntry?.moneyline?.away?.close?.odds) : null;
+
       return {
         externalId: `espn_${event.id}`,
         homeTeamCode: home?.team.abbreviation ?? null,
@@ -207,6 +231,9 @@ class EspnFootballProvider implements FootballProvider {
         status,
         homeScore: isNaN(homeScore as number) ? null : homeScore,
         awayScore: isNaN(awayScore as number) ? null : awayScore,
+        oddsHome,
+        oddsDraw,
+        oddsAway,
       };
     });
   }
