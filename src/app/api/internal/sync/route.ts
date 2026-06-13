@@ -6,9 +6,11 @@ export const maxDuration = 60;
 
 async function authorize(req: Request): Promise<void> {
   const secret = process.env.CRON_SECRET;
+  const url = new URL(req.url);
+  const queryOk = Boolean(secret) && url.searchParams.get('secret') === secret;
   const headerOk = Boolean(secret) && req.headers.get('x-cron-secret') === secret;
   const bearerOk = Boolean(secret) && req.headers.get('authorization') === `Bearer ${secret}`;
-  if (headerOk || bearerOk) return;
+  if (queryOk || headerOk || bearerOk) return;
   const session = await getSession();
   if (session?.role !== 'ADMIN') throw new ApiError(401, 'Não autorizado');
 }
