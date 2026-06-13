@@ -8,11 +8,10 @@ export function setAuthCookies(res: NextResponse, tokens: AuthTokens): void {
   res.cookies.set(REFRESH_COOKIE, tokens.refreshToken, {
     ...cookieOptions,
     maxAge: days * 86_400,
-    path: '/api/auth',
   });
 }
 
 export function clearAuthCookies(res: NextResponse): void {
   res.cookies.set(ACCESS_COOKIE, '', { ...cookieOptions, maxAge: 0 });
-  res.cookies.set(REFRESH_COOKIE, '', { ...cookieOptions, maxAge: 0, path: '/api/auth' });
+  res.cookies.set(REFRESH_COOKIE, '', { ...cookieOptions, maxAge: 0 });
 }
