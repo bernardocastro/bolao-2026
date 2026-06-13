@@ -148,7 +148,7 @@ export function MatchCard({ match, bet, poolId }: MatchCardProps) {
               <span className="hidden text-sm font-semibold sm:block">{match.homeTeam.name}</span>
               <span className="text-sm font-semibold sm:hidden">{match.homeTeam.code}</span>
               {match.oddsHome !== null && match.oddsHome >= AZARAO_THRESHOLD && (
-                <Badge variant="outline" className="border-amber-500/50 px-1.5 py-0 text-[10px] text-amber-500">
+                <Badge variant="outline" className="w-fit max-w-[4rem] border-amber-500/50 px-1.5 py-0 text-[10px] text-amber-500">
                   Azarão
                 </Badge>
               )}
@@ -194,7 +194,7 @@ export function MatchCard({ match, bet, poolId }: MatchCardProps) {
               <span className="hidden text-sm font-semibold sm:block">{match.awayTeam.name}</span>
               <span className="text-sm font-semibold sm:hidden">{match.awayTeam.code}</span>
               {match.oddsAway !== null && match.oddsAway >= AZARAO_THRESHOLD && (
-                <Badge variant="outline" className="border-amber-500/50 px-1.5 py-0 text-[10px] text-amber-500">
+                <Badge variant="outline" className="w-fit max-w-[4rem] border-amber-500/50 px-1.5 py-0 text-[10px] text-amber-500">
                   Azarão
                 </Badge>
               )}
@@ -217,6 +217,15 @@ export function MatchCard({ match, bet, poolId }: MatchCardProps) {
             <span className="font-mono font-bold text-foreground">{toDecimal(match.oddsAway)}</span>
             <span>{match.awayTeam.code}</span>
           </div>
+        </div>
+      )}
+
+      {bet && match.status === 'LIVE' && (
+        <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+          <span>Seu palpite:</span>
+          <span className="font-semibold text-foreground">
+            {bet.homeScore} × {bet.awayScore}
+          </span>
         </div>
       )}
 
