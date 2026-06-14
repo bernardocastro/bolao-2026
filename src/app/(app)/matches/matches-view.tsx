@@ -16,9 +16,10 @@ interface MatchesViewProps {
   currentUserId: string;
 }
 
-type FilterKey = 'all' | 'today' | 'tomorrow' | 'week' | 'bra' | 'live' | 'finished' | `group:${string}`;
+type FilterKey = 'upcoming' | 'all' | 'today' | 'tomorrow' | 'week' | 'bra' | 'live' | 'finished' | `group:${string}`;
 
 const BASE_FILTERS: { value: FilterKey; label: string }[] = [
+  { value: 'upcoming', label: 'Próximos jogos' },
   { value: 'all', label: 'Todos' },
   { value: 'today', label: 'Hoje' },
   { value: 'tomorrow', label: 'Amanhã' },
@@ -47,6 +48,8 @@ function filterMatches(matches: MatchDTO[], filter: FilterKey): MatchDTO[] {
   weekEnd.setDate(today.getDate() + 8);
 
   switch (filter) {
+    case 'upcoming':
+      return matches.filter((m) => m.status === 'SCHEDULED' || m.status === 'LIVE');
     case 'today':
       return matches.filter((m) => sameDay(new Date(m.kickoffAt), today));
     case 'tomorrow':
@@ -75,7 +78,7 @@ function filterMatches(matches: MatchDTO[], filter: FilterKey): MatchDTO[] {
 
 export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
   const [poolId, setPoolId] = useState(pools[0]?.id);
-  const [filter, setFilter] = useState<FilterKey>('all');
+  const [filter, setFilter] = useState<FilterKey>('upcoming');
   const [view, setView] = useState<'palpites' | 'grupos'>('palpites');
 
   const { data: allMatches, isLoading } = useQuery({
