@@ -83,7 +83,7 @@ export function PoolDetail({ pool, currentUserId, isAdmin }: PoolDetailProps) {
           <LiveRanking poolId={pool.id} highlightUserId={currentUserId} />
         </TabsContent>
         <TabsContent value="bets">
-          <PoolBets poolId={pool.id} />
+          <PoolBets poolId={pool.id} currentUserId={currentUserId} />
         </TabsContent>
         <TabsContent value="feed">
           <PoolFeed poolId={pool.id} currentUserId={currentUserId} />
