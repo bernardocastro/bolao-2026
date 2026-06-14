@@ -91,6 +91,16 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
     enabled: Boolean(poolId),
   });
 
+  const groupFilters = useMemo(() => {
+    const groups = new Set<string>();
+    for (const m of allMatches ?? []) {
+      if (m.groupName) groups.add(m.groupName);
+    }
+    return [...groups].sort().map((g) => ({ value: `group:${g}` as FilterKey, label: `Grupo ${g}` }));
+  }, [allMatches]);
+
+  const allFilters = [...BASE_FILTERS, ...groupFilters];
+
   if (pools.length === 0) {
     return (
       <EmptyState
@@ -104,16 +114,6 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
   const betByMatch = new Map((bets ?? []).map((b) => [b.matchId, b]));
   const selectedPool = pools.find((p) => p.id === poolId);
   const filtered = filterMatches(allMatches ?? [], filter);
-
-  const groupFilters = useMemo(() => {
-    const groups = new Set<string>();
-    for (const m of allMatches ?? []) {
-      if (m.groupName) groups.add(m.groupName);
-    }
-    return [...groups].sort().map((g) => ({ value: `group:${g}` as FilterKey, label: `Grupo ${g}` }));
-  }, [allMatches]);
-
-  const allFilters = [...BASE_FILTERS, ...groupFilters];
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
