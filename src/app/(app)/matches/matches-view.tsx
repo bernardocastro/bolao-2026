@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ListChecks, Layers } from 'lucide-react';
 import { api } from '@/lib/api-client';
@@ -16,9 +16,9 @@ interface MatchesViewProps {
   currentUserId: string;
 }
 
-type FilterKey = 'all' | 'today' | 'tomorrow' | 'week' | 'bra' | 'live' | 'finished';
+type FilterKey = 'all' | 'today' | 'tomorrow' | 'week' | 'bra' | 'live' | 'finished' | `group:${string}`;
 
-const FILTERS: { value: FilterKey; label: string }[] = [
+const BASE_FILTERS: { value: FilterKey; label: string }[] = [
   { value: 'all', label: 'Todos' },
   { value: 'today', label: 'Hoje' },
   { value: 'tomorrow', label: 'Amanhã' },
@@ -65,6 +65,10 @@ function filterMatches(matches: MatchDTO[], filter: FilterKey): MatchDTO[] {
     case 'finished':
       return matches.filter((m) => m.status === 'FINISHED');
     default:
+      if (filter.startsWith('group:')) {
+        const groupName = filter.slice(6);
+        return matches.filter((m) => m.groupName === groupName);
+      }
       return matches;
   }
 }
@@ -100,6 +104,16 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
   const betByMatch = new Map((bets ?? []).map((b) => [b.matchId, b]));
   const selectedPool = pools.find((p) => p.id === poolId);
   const filtered = filterMatches(allMatches ?? [], filter);
+
+  const groupFilters = useMemo(() => {
+    const groups = new Set<string>();
+    for (const m of allMatches ?? []) {
+      if (m.groupName) groups.add(m.groupName);
+    }
+    return [...groups].sort().map((g) => ({ value: `group:${g}` as FilterKey, label: `Grupo ${g}` }));
+  }, [allMatches]);
+
+  const allFilters = [...BASE_FILTERS, ...groupFilters];
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
@@ -163,20 +177,25 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
         {view === 'palpites' ? (
           <>
             {/* Filter chips */}
-            <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
-              {FILTERS.map((f) => (
-                <button
-                  key={f.value}
-                  onClick={() => setFilter(f.value)}
-                  className={cn(
-                    'whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
-                    filter === f.value
-                      ? 'border-primary bg-primary/15 text-primary'
-                      : 'border-border text-muted-foreground hover:bg-accent',
+            <div className="no-scrollbar flex items-center gap-2 overflow-x-auto pb-1">
+              {allFilters.map((f, i) => (
+                <>
+                  {i === BASE_FILTERS.length && groupFilters.length > 0 && (
+                    <div key="sep" className="h-5 w-px shrink-0 bg-border" />
                   )}
-                >
-                  {f.label}
-                </button>
+                  <button
+                    key={f.value}
+                    onClick={() => setFilter(f.value)}
+                    className={cn(
+                      'whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                      filter === f.value
+                        ? 'border-primary bg-primary/15 text-primary'
+                        : 'border-border text-muted-foreground hover:bg-accent',
+                    )}
+                  >
+                    {f.label}
+                  </button>
+                </>
               ))}
             </div>
 
