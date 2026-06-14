@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ListChecks } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { MatchCard, type MatchDTO, type BetDTO } from '@/components/features/match-card';
+import { TopScorerCard } from '@/components/features/top-scorer-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
@@ -133,6 +134,8 @@ export function PoolBets({ poolId, currentUserId }: PoolBetsProps) {
 
   return (
     <div className="space-y-4">
+      <TopScorerCard poolId={poolId} />
+
       {/* Filter chips */}
       <div className="space-y-2">
         <div className="flex flex-wrap gap-2">

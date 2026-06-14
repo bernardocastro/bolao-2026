@@ -39,6 +39,7 @@ model User {
   notifications      Notification[]
   achievements       UserAchievement[]
   rankingSnapshots   RankingSnapshot[]
+  topScorerPicks     TopScorerPick[]
 
   @@index([username])
 }
@@ -175,11 +176,15 @@ model Pool {
   pointsGoalDiff      Int @default(7)
   bonusUnderdog       Int @default(3) // acertou zebra
   bonusUniqueHit      Int @default(2) // único a acertar no bolão
+  bonusTopScorer      Int @default(50) // acertou o artilheiro do torneio
 
-  members   PoolMember[]
-  bets      Bet[]
-  feedPosts FeedPost[]
-  snapshots RankingSnapshot[]
+  topScorerResult String? // nome do artilheiro; null até o admin confirmar
+
+  members         PoolMember[]
+  bets            Bet[]
+  feedPosts       FeedPost[]
+  snapshots       RankingSnapshot[]
+  topScorerPicks  TopScorerPick[]
 
   @@index([inviteCode])
 }
@@ -266,6 +271,7 @@ enum FeedPostType {
   POOL_CREATED
   USER_POST
   MATCH_RESULT
+  TOP_SCORER_HIT
 }
 
 model FeedPost {
@@ -359,4 +365,21 @@ model Notification {
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, readAt])
+}
+
+// ─────────────────────────── TOP SCORER ───────────────────────────
+
+model TopScorerPick {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  poolId     String
+  pool       Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  playerName String
+  scored     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, poolId])
+  @@index([poolId])
 }

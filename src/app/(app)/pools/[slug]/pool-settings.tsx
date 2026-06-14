@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { BookOpen, Settings } from 'lucide-react';
+import { BookOpen, Settings, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { updatePoolRulesSchema } from '@/server/pools/pool.dto';
 import { api, ClientApiError } from '@/lib/api-client';
+import { TOP_SCORER_PLAYERS } from '@/lib/top-scorer-players';
 import type { z } from 'zod';
 
 export interface PoolRulesInfo {
@@ -30,6 +31,8 @@ export interface PoolRulesInfo {
   pointsCorrectWinner: number;
   bonusUnderdog: number;
   bonusUniqueHit: number;
+  bonusTopScorer: number;
+  topScorerResult: string | null;
 }
 
 const RULE_ROWS: Array<{ key: keyof PoolRulesInfo; emoji: string; label: string; hint: string }> = [
@@ -38,6 +41,7 @@ const RULE_ROWS: Array<{ key: keyof PoolRulesInfo; emoji: string; label: string;
   { key: 'pointsCorrectWinner', emoji: '✅', label: 'Vencedor correto', hint: 'Acertou quem venceu (ou o empate)' },
   { key: 'bonusUnderdog', emoji: '🦓', label: 'Bônus zebra', hint: 'Acertou vitória do azarão (acumula)' },
   { key: 'bonusUniqueHit', emoji: '🏅', label: 'Bônus solitário', hint: 'Único do bolão a acertar (acumula)' },
+  { key: 'bonusTopScorer', emoji: '🥅', label: 'Artilheiro do torneio', hint: 'Acertou o artilheiro até 17/06' },
 ];
 
 /** Regras de pontuação do bolão — visível para todos os membros. */
@@ -88,6 +92,9 @@ type SettingsInput = z.output<typeof updatePoolRulesSchema>;
 export function PoolSettingsDialog({ pool }: { pool: PoolRulesInfo }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [topScorerPlayer, setTopScorerPlayer] = useState('');
+  const [isConfirming, setIsConfirming] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -115,6 +122,29 @@ export function PoolSettingsDialog({ pool }: { pool: PoolRulesInfo }) {
       toast.error(error instanceof ClientApiError ? error.message : 'Erro ao salvar');
     }
   }
+
+  async function confirmTopScorer() {
+    if (!topScorerPlayer) return;
+    setIsConfirming(true);
+    try {
+      const res = await api<{ winners: number; bonus: number }>(
+        `/api/pools/${pool.id}/top-scorer-result`,
+        { method: 'POST', json: { playerName: topScorerPlayer } },
+      );
+      toast.success(`Artilheiro confirmado! ${res.winners} participante(s) ganham +${res.bonus} pts 🥅`);
+      setOpen(false);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof ClientApiError ? error.message : 'Erro ao confirmar');
+    } finally {
+      setIsConfirming(false);
+    }
+  }
+
+  const byCountry = TOP_SCORER_PLAYERS.reduce<Record<string, typeof TOP_SCORER_PLAYERS>>((acc, p) => {
+    (acc[p.country] ??= []).push(p);
+    return acc;
+  }, {});
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -150,7 +180,7 @@ export function PoolSettingsDialog({ pool }: { pool: PoolRulesInfo }) {
                   id={`rule-${rule.key}`}
                   type="number"
                   min={0}
-                  max={100}
+                  max={200}
                   {...register(rule.key as 'pointsExactScore', { valueAsNumber: true })}
                 />
               </div>
@@ -160,6 +190,48 @@ export function PoolSettingsDialog({ pool }: { pool: PoolRulesInfo }) {
             Salvar alterações
           </Button>
         </form>
+
+        {/* Artilheiro do torneio — admin only, one-time action */}
+        <div className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Trophy className="h-4 w-4 text-amber-500" />
+            <p className="text-sm font-semibold">Artilheiro do Torneio</p>
+          </div>
+          {pool.topScorerResult ? (
+            <p className="text-sm text-muted-foreground">
+              Já confirmado: <strong className="text-foreground">{pool.topScorerResult}</strong>
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Confirme o artilheiro ao fim do torneio. Esta ação distribui os pontos e não pode ser desfeita.
+              </p>
+              <select
+                value={topScorerPlayer}
+                onChange={(e) => setTopScorerPlayer(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none"
+              >
+                <option value="">Selecione o artilheiro...</option>
+                {Object.entries(byCountry).map(([country, players]) => (
+                  <optgroup key={country} label={country}>
+                    {players.map((p) => (
+                      <option key={p.name} value={p.name}>{p.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <Button
+                className="w-full bg-amber-500 text-white hover:bg-amber-600"
+                disabled={!topScorerPlayer}
+                loading={isConfirming}
+                onClick={confirmTopScorer}
+                type="button"
+              >
+                Confirmar artilheiro e distribuir pontos
+              </Button>
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

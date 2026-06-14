@@ -25,6 +25,8 @@ interface PoolDetailProps {
     pointsCorrectWinner: number;
     bonusUnderdog: number;
     bonusUniqueHit: number;
+    bonusTopScorer: number;
+    topScorerResult: string | null;
   };
   currentUserId: string;
   isAdmin: boolean;

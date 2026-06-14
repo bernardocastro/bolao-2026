@@ -7,6 +7,7 @@ import { api } from '@/lib/api-client';
 import { MatchCard, type MatchDTO, type BetDTO } from '@/components/features/match-card';
 import { MatchesSidebar } from '@/components/features/matches-sidebar';
 import { GroupsView } from '@/components/features/groups-view';
+import { TopScorerCard } from '@/components/features/top-scorer-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
@@ -177,6 +178,8 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
 
         {view === 'palpites' ? (
           <>
+            {poolId && <TopScorerCard poolId={poolId} />}
+
             {/* Filter chips */}
             <div className="space-y-2">
               <div className="flex flex-wrap gap-2">
