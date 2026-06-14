@@ -40,35 +40,43 @@ export const rankingService = {
     });
   },
 
-  /** Ranking global (todos os bolões somados). */
+  /** Ranking global — posição determinada pelo melhor bolão de cada participante. */
   async global(limit = 50): Promise<RankingEntry[]> {
     return cached('ranking:global', 60, async () => {
-      const grouped = await prisma.poolMember.groupBy({
-        by: ['userId'],
-        _sum: { totalPoints: true, exactScores: true, correctWinners: true },
-        orderBy: { _sum: { totalPoints: 'desc' } },
-        take: limit,
+      const allMembers = await prisma.poolMember.findMany({
+        include: { user: { select: { id: true, name: true, username: true, avatarUrl: true } } },
       });
-      const users = await prisma.user.findMany({
-        where: { id: { in: grouped.map((g) => g.userId) } },
-        select: { id: true, name: true, username: true, avatarUrl: true },
-      });
-      const byId = new Map(users.map((u) => [u.id, u]));
-      return grouped.map((g, i) => {
-        const u = byId.get(g.userId);
-        return {
-          userId: g.userId,
-          name: u?.name ?? '—',
-          username: u?.username ?? '—',
-          avatarUrl: u?.avatarUrl ?? null,
-          totalPoints: g._sum.totalPoints ?? 0,
-          exactScores: g._sum.exactScores ?? 0,
-          correctWinners: g._sum.correctWinners ?? 0,
-          currentRank: i + 1,
-          previousRank: null,
-          streak: 0,
-        };
-      });
+
+      // Mantém apenas o melhor bolão por usuário
+      const bestByUser = new Map<string, (typeof allMembers)[number]>();
+      for (const m of allMembers) {
+        const current = bestByUser.get(m.userId);
+        if (!current || m.totalPoints > current.totalPoints ||
+           (m.totalPoints === current.totalPoints && m.exactScores > current.exactScores)) {
+          bestByUser.set(m.userId, m);
+        }
+      }
+
+      const sorted = [...bestByUser.values()]
+        .sort((a, b) =>
+          b.totalPoints - a.totalPoints ||
+          b.exactScores - a.exactScores ||
+          a.joinedAt.getTime() - b.joinedAt.getTime(),
+        )
+        .slice(0, limit);
+
+      return sorted.map((m, i) => ({
+        userId: m.userId,
+        name: m.user.name,
+        username: m.user.username,
+        avatarUrl: m.user.avatarUrl,
+        totalPoints: m.totalPoints,
+        exactScores: m.exactScores,
+        correctWinners: m.correctWinners,
+        currentRank: i + 1,
+        previousRank: null,
+        streak: 0,
+      }));
     });
   },
 
