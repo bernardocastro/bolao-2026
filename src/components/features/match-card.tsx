@@ -29,10 +29,20 @@ export interface MatchDTO {
   oddsAway: number | null;
 }
 
-/** Converte moneyline americano para odds decimais (ex.: -120 → 1.83, +380 → 4.80) */
-function toDecimal(american: number): string {
-  const dec = american > 0 ? american / 100 + 1 : 100 / Math.abs(american) + 1;
-  return dec.toFixed(2);
+function impliedProb(american: number): number {
+  return american > 0
+    ? 100 / (american + 100)
+    : Math.abs(american) / (Math.abs(american) + 100);
+}
+
+function toPcts(home: number, draw: number, away: number): [number, number, number] {
+  const h = impliedProb(home);
+  const d = impliedProb(draw);
+  const a = impliedProb(away);
+  const total = h + d + a;
+  const pH = Math.round((h / total) * 100);
+  const pD = Math.round((d / total) * 100);
+  return [pH, pD, 100 - pH - pD];
 }
 
 const AZARAO_THRESHOLD = 150; // moneyline >= +150 = azarão
@@ -203,27 +213,28 @@ export function MatchCard({ match, bet, poolId }: MatchCardProps) {
         </div>
       </div>
 
-      {match.status === 'SCHEDULED' && match.oddsHome !== null && match.oddsDraw !== null && match.oddsAway !== null && (
-        <div className="mt-2 flex items-center justify-center gap-1 text-xs text-muted-foreground">
-          <div className="flex flex-1 flex-col items-center gap-0.5 rounded-md bg-secondary/40 py-1.5">
-            <span className="font-mono font-bold text-foreground">{toDecimal(match.oddsHome)}</span>
-            <span>{match.homeTeam.code}</span>
+      {match.status === 'SCHEDULED' && match.oddsHome !== null && match.oddsDraw !== null && match.oddsAway !== null && (() => {
+        const [pH, pD, pA] = toPcts(match.oddsHome, match.oddsDraw, match.oddsAway);
+        return (
+          <div className="mt-3 space-y-1.5">
+            <div className="flex h-2 overflow-hidden rounded-full">
+              <div className="bg-primary transition-all" style={{ width: `${pH}%` }} />
+              <div className="bg-amber-500/70 transition-all" style={{ width: `${pD}%` }} />
+              <div className="bg-sky-500 transition-all" style={{ width: `${pA}%` }} />
+            </div>
+            <div className="flex justify-between text-[11px]">
+              <span className="font-semibold text-primary">{match.homeTeam.code} {pH}%</span>
+              <span className="text-amber-500/80">Empate {pD}%</span>
+              <span className="font-semibold text-sky-400">{pA}% {match.awayTeam.code}</span>
+            </div>
           </div>
-          <div className="flex flex-1 flex-col items-center gap-0.5 rounded-md bg-secondary/40 py-1.5">
-            <span className="font-mono font-bold text-foreground">{toDecimal(match.oddsDraw)}</span>
-            <span>Empate</span>
-          </div>
-          <div className="flex flex-1 flex-col items-center gap-0.5 rounded-md bg-secondary/40 py-1.5">
-            <span className="font-mono font-bold text-foreground">{toDecimal(match.oddsAway)}</span>
-            <span>{match.awayTeam.code}</span>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {bet && match.status === 'LIVE' && (
-        <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+        <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-primary">
           <span>Seu palpite:</span>
-          <span className="font-semibold text-foreground">
+          <span className="font-semibold">
             {bet.homeScore} × {bet.awayScore}
           </span>
         </div>
@@ -231,7 +242,7 @@ export function MatchCard({ match, bet, poolId }: MatchCardProps) {
 
       {bet?.status === 'SCORED' && (
         <div className="mt-3 flex items-center justify-center gap-2 text-sm">
-          <span className="text-muted-foreground">
+          <span className="text-primary">
             Seu palpite: {bet.homeScore}×{bet.awayScore}
           </span>
           <Badge variant={bet.pointsEarned > 0 ? (bet.isExactScore ? 'gold' : 'default') : 'secondary'}>
