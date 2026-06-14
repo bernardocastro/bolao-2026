@@ -179,7 +179,7 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
           <>
             {/* Filter chips */}
             <div className="space-y-2">
-              <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+              <div className="flex flex-wrap gap-2">
                 {BASE_FILTERS.map((f) => (
                   <button
                     key={f.value}
