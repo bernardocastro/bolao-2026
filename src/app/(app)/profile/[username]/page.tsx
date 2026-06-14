@@ -1,10 +1,8 @@
 import { redirect, notFound } from 'next/navigation';
 import { getSession } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
-import { achievementService } from '@/server/achievements/achievement.service';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
-import { AchievementBadge } from '@/components/features/achievement-badge';
 import { initials, formatPoints } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -31,7 +29,6 @@ export default async function ProfilePage({ params }: PageProps) {
   });
   if (!user) notFound();
 
-  const achievements = await achievementService.forUser(user.id);
   const stats = user.poolMemberships.reduce(
     (acc, m) => ({
       totalPoints: acc.totalPoints + m.totalPoints,
@@ -72,23 +69,6 @@ export default async function ProfilePage({ params }: PageProps) {
           </Card>
         ))}
       </div>
-
-      <section>
-        <h2 className="mb-3 font-display text-lg font-semibold">Conquistas</h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {achievements.map((a) => (
-            <AchievementBadge
-              key={a.code}
-              code={a.code}
-              name={a.name}
-              description={a.description}
-              icon={a.icon}
-              tier={a.tier}
-              unlockedAt={a.unlockedAt ? a.unlockedAt.toISOString() : null}
-            />
-          ))}
-        </div>
-      </section>
 
       <section>
         <h2 className="mb-3 font-display text-lg font-semibold">Bolões</h2>

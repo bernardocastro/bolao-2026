@@ -1,7 +1,6 @@
 import { withErrorHandling, json, NotFoundError } from '@/lib/api';
 import { requireSession } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
-import { achievementService } from '@/server/achievements/achievement.service';
 
 interface Ctx {
   params: { username: string };
@@ -31,7 +30,6 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Ctx) => {
   });
   if (!user) throw new NotFoundError('Usuário');
 
-  const achievements = await achievementService.forUser(user.id);
   const stats = user.poolMemberships.reduce(
     (acc, m) => ({
       totalPoints: acc.totalPoints + m.totalPoints,
@@ -41,5 +39,5 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Ctx) => {
     { totalPoints: 0, exactScores: 0, correctWinners: 0 },
   );
 
-  return json({ user, stats, achievements });
+  return json({ user, stats });
 });

@@ -4,7 +4,6 @@ import { ApiError, NotFoundError } from '@/lib/api';
 import { scoreBet, applyUniqueHitBonus } from '@/server/bets/scoring.engine';
 import { feedService } from '@/server/feed/feed.service';
 import { notificationService } from '@/server/notifications/notification.service';
-import { achievementService } from '@/server/achievements/achievement.service';
 import { rankingService } from '@/server/ranking/ranking.service';
 
 interface SetResultInput {
@@ -17,7 +16,7 @@ interface SetResultInput {
 export const resultService = {
   /**
    * Atualiza resultado de uma partida e, se FINISHED, processa toda a cadeia:
-   * pontuação → agregados → rankings → feed → conquistas → notificações.
+   * pontuação → agregados → rankings → feed → notificações.
    */
   async setResult(input: SetResultInput): Promise<void> {
     const match = await prisma.match.findUnique({
@@ -50,12 +49,13 @@ export const resultService = {
     });
     const scoreLabel = `${match.homeTeam.name} ${homeScore} x ${awayScore} ${match.awayTeam.name}`;
 
-    // agrupa apostas por bolão (regras diferentes por bolão)
+    // Fetch ALL bets per pool (any status) so uniqueness is computed correctly
+    // even if some bets were already scored in a prior partial run.
     const pools = await prisma.pool.findMany({
       where: { bets: { some: { matchId } } },
       include: {
         bets: {
-          where: { matchId, status: 'PENDING' },
+          where: { matchId },
           include: { user: { select: { id: true, name: true } } },
         },
       },
@@ -69,6 +69,8 @@ export const resultService = {
         bonusUnderdog: pool.bonusUnderdog,
         bonusUniqueHit: pool.bonusUniqueHit,
       };
+
+      // Score all bets (including already-SCORED ones) to determine uniqueness correctly.
       const scored = applyUniqueHitBonus(
         pool.bets.map((bet) => ({
           bet,
@@ -82,6 +84,9 @@ export const resultService = {
       );
 
       for (const { bet, score, isUniqueHit } of scored) {
+        // Only update bets that haven't been scored yet.
+        if (bet.status !== 'PENDING') continue;
+
         await prisma.$transaction([
           prisma.bet.update({
             where: { id: bet.id },
@@ -132,12 +137,7 @@ export const resultService = {
         metadata: { matchId, homeScore, awayScore },
       });
 
-      // recalcula ranking, detecta subidas/quedas e publica em tempo real
       await rankingService.recompute(pool.id, { matchLabel: scoreLabel });
-      // conquistas dos envolvidos
-      for (const { bet } of scored) {
-        await achievementService.evaluate(bet.userId, pool.id);
-      }
     }
 
     await prisma.match.update({ where: { id: matchId }, data: { scoredAt: new Date() } });
