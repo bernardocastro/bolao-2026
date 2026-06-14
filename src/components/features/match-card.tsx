@@ -3,12 +3,14 @@
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, Check } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Lock, Check, ChevronDown, Users } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { api, ClientApiError } from '@/lib/api-client';
-import { formatKickoff } from '@/lib/utils';
+import { formatKickoff, initials, cn } from '@/lib/utils';
 
 const DEBOUNCE_MS = 800;
 
@@ -57,10 +59,100 @@ export interface BetDTO {
   isCorrectWinner: boolean;
 }
 
+export interface MatchBetEntry {
+  matchId: string;
+  homeScore: number;
+  awayScore: number;
+  pointsEarned: number;
+  status: 'PENDING' | 'SCORED';
+  isExactScore: boolean;
+  isCorrectWinner: boolean;
+  user: { id: string; name: string; username: string; avatarUrl: string | null };
+}
+
 interface MatchCardProps {
   match: MatchDTO;
   bet?: BetDTO;
   poolId?: string;
+  currentUserId?: string;
+}
+
+function MatchBetsList({
+  matchId,
+  poolId,
+  currentUserId,
+}: {
+  matchId: string;
+  poolId: string;
+  currentUserId?: string;
+}) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['match-bets', matchId, poolId],
+    queryFn: () =>
+      api<{ bets: MatchBetEntry[] }>(`/api/matches/${matchId}/bets?poolId=${poolId}`),
+    select: (d) => d.bets,
+    staleTime: 30_000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="mt-2 space-y-2">
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} className="h-8 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!data?.length) {
+    return (
+      <p className="mt-2 text-center text-xs text-muted-foreground">
+        Nenhum palpite registrado.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-2 space-y-1.5">
+      {data.map((entry) => {
+        const isMe = entry.user.id === currentUserId;
+        return (
+          <div
+            key={entry.user.id}
+            className={cn(
+              'flex items-center gap-2 rounded-md px-2 py-1.5 text-xs',
+              isMe ? 'bg-primary/10' : 'bg-secondary/30',
+            )}
+          >
+            <Avatar className="h-6 w-6 shrink-0">
+              <AvatarImage src={entry.user.avatarUrl ?? undefined} />
+              <AvatarFallback className="text-[9px]">{initials(entry.user.name)}</AvatarFallback>
+            </Avatar>
+            <span className={cn('min-w-0 flex-1 truncate font-medium', isMe && 'text-primary')}>
+              {isMe ? 'Você' : entry.user.name}
+            </span>
+            <span className="shrink-0 font-black tabular-nums">
+              {entry.homeScore} × {entry.awayScore}
+            </span>
+            {entry.status === 'SCORED' && (
+              <Badge
+                variant={
+                  entry.pointsEarned > 0
+                    ? entry.isExactScore
+                      ? 'gold'
+                      : 'default'
+                    : 'secondary'
+                }
+                className="shrink-0 text-[10px]"
+              >
+                {entry.isExactScore && '🎯 '}+{entry.pointsEarned}
+              </Badge>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function ScoreInput({
@@ -90,12 +182,16 @@ function ScoreInput({
 
 type SaveStatus = 'idle' | 'saving' | 'saved';
 
-export function MatchCard({ match, bet, poolId }: MatchCardProps) {
+export function MatchCard({ match, bet, poolId, currentUserId }: MatchCardProps) {
   const queryClient = useQueryClient();
   const [home, setHome] = useState(bet ? String(bet.homeScore) : '');
   const [away, setAway] = useState(bet ? String(bet.awayScore) : '');
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [showBets, setShowBets] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const kickoffPassed = new Date(match.kickoffAt) <= new Date();
+  const canReveal = poolId && kickoffPassed && match.status !== 'SCHEDULED' && match.status !== 'POSTPONED';
 
   const locked = match.status !== 'SCHEDULED' || new Date(match.kickoffAt) <= new Date();
   const dirty = home !== (bet ? String(bet.homeScore) : '') || away !== (bet ? String(bet.awayScore) : '');
@@ -270,6 +366,38 @@ export function MatchCard({ match, bet, poolId }: MatchCardProps) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {canReveal && (
+        <div className="mt-3 border-t border-border/40 pt-3">
+          <button
+            onClick={() => setShowBets((v) => !v)}
+            className="flex w-full items-center justify-between text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <span className="flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5" />
+              Palpites dos participantes
+            </span>
+            <ChevronDown
+              className={cn('h-3.5 w-3.5 transition-transform', showBets && 'rotate-180')}
+            />
+          </button>
+          <AnimatePresence>
+            {showBets && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                <MatchBetsList
+                  matchId={match.id}
+                  poolId={poolId}
+                  currentUserId={currentUserId}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
     </motion.div>
   );
 }

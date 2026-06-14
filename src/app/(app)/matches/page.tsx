@@ -14,6 +14,7 @@ export default async function MatchesPage() {
   return (
     <MatchesView
       pools={pools.map((p) => ({ id: p.id, name: p.name }))}
+      currentUserId={session.sub}
     />
   );
 }

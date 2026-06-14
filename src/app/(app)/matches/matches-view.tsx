@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 
 interface MatchesViewProps {
   pools: Array<{ id: string; name: string }>;
+  currentUserId: string;
 }
 
 type FilterKey = 'all' | 'today' | 'tomorrow' | 'week' | 'bra' | 'live' | 'finished';
@@ -68,7 +69,7 @@ function filterMatches(matches: MatchDTO[], filter: FilterKey): MatchDTO[] {
   }
 }
 
-export function MatchesView({ pools }: MatchesViewProps) {
+export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
   const [poolId, setPoolId] = useState(pools[0]?.id);
   const [filter, setFilter] = useState<FilterKey>('all');
   const [view, setView] = useState<'palpites' | 'grupos'>('palpites');
@@ -198,6 +199,7 @@ export function MatchesView({ pools }: MatchesViewProps) {
                     match={match}
                     bet={betByMatch.get(match.id)}
                     poolId={poolId}
+                    currentUserId={currentUserId}
                   />
                 ))}
               </div>
