@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { LiveRanking } from '@/components/features/live-ranking';
+import { MatchesSidebar } from '@/components/features/matches-sidebar';
 import { PoolFeed } from './pool-feed';
 import { PoolRulesDialog, PoolSettingsDialog } from './pool-settings';
 import { PoolBets } from './pool-bets';
@@ -48,7 +49,8 @@ export function PoolDetail({ pool, currentUserId, isAdmin }: PoolDetailProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
+    <div className="min-w-0 space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-bold">{pool.name}</h1>
@@ -90,5 +92,12 @@ export function PoolDetail({ pool, currentUserId, isAdmin }: PoolDetailProps) {
         </TabsContent>
       </Tabs>
     </div>
+
+    <aside className="hidden lg:block">
+      <div className="sticky top-20">
+        <MatchesSidebar poolId={pool.id} poolName={pool.name} />
+      </div>
+    </aside>
+  </div>
   );
 }
