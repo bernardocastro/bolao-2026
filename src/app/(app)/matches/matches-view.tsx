@@ -99,8 +99,6 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
     return [...groups].sort().map((g) => ({ value: `group:${g}` as FilterKey, label: `Grupo ${g}` }));
   }, [allMatches]);
 
-  const allFilters = [...BASE_FILTERS, ...groupFilters];
-
   if (pools.length === 0) {
     return (
       <EmptyState
@@ -118,7 +116,7 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
       {/* Main column */}
-      <div className="space-y-5">
+      <div className="min-w-0 space-y-5">
         <div>
           <h1 className="font-display text-2xl font-bold">Palpites</h1>
           <p className="text-sm text-muted-foreground">
@@ -177,12 +175,9 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
         {view === 'palpites' ? (
           <>
             {/* Filter chips */}
-            <div className="no-scrollbar flex items-center gap-2 overflow-x-auto pb-1">
-              {allFilters.map((f, i) => (
-                <>
-                  {i === BASE_FILTERS.length && groupFilters.length > 0 && (
-                    <div key="sep" className="h-5 w-px shrink-0 bg-border" />
-                  )}
+            <div className="space-y-2">
+              <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+                {BASE_FILTERS.map((f) => (
                   <button
                     key={f.value}
                     onClick={() => setFilter(f.value)}
@@ -195,8 +190,30 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
                   >
                     {f.label}
                   </button>
-                </>
-              ))}
+                ))}
+              </div>
+
+              {groupFilters.length > 0 && (
+                <select
+                  value={filter.startsWith('group:') ? filter.slice(6) : ''}
+                  onChange={(e) =>
+                    setFilter(e.target.value ? (`group:${e.target.value}` as FilterKey) : 'all')
+                  }
+                  className={cn(
+                    'rounded-full border px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none',
+                    filter.startsWith('group:')
+                      ? 'border-primary bg-primary/15 text-primary'
+                      : 'border-border bg-transparent text-muted-foreground hover:bg-accent',
+                  )}
+                >
+                  <option value="">Todos os grupos</option>
+                  {groupFilters.map((g) => (
+                    <option key={g.value} value={g.value.slice(6)}>
+                      {g.label}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* Match cards */}
