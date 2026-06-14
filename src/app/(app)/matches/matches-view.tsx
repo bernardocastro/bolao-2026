@@ -2,34 +2,83 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ListChecks } from 'lucide-react';
+import { ListChecks, Layers } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { MatchCard, type MatchDTO, type BetDTO } from '@/components/features/match-card';
 import { MatchesSidebar } from '@/components/features/matches-sidebar';
+import { GroupsView } from '@/components/features/groups-view';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
 interface MatchesViewProps {
   pools: Array<{ id: string; name: string }>;
 }
 
-const ROUNDS = [
-  { value: '1', label: 'Rodada 1' },
-  { value: '2', label: 'Rodada 2' },
-  { value: '3', label: 'Rodada 3' },
+type FilterKey = 'all' | 'today' | 'tomorrow' | 'week' | 'bra' | 'live' | 'finished';
+
+const FILTERS: { value: FilterKey; label: string }[] = [
+  { value: 'all', label: 'Todos' },
+  { value: 'today', label: 'Hoje' },
+  { value: 'tomorrow', label: 'Amanhã' },
+  { value: 'week', label: 'Próx. semana' },
+  { value: 'bra', label: '🇧🇷 Brasil' },
+  { value: 'live', label: '● Ao vivo' },
+  { value: 'finished', label: 'Encerrados' },
 ];
+
+function sameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function filterMatches(matches: MatchDTO[], filter: FilterKey): MatchDTO[] {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const dayAfterTomorrow = new Date(today);
+  dayAfterTomorrow.setDate(today.getDate() + 2);
+  const weekEnd = new Date(today);
+  weekEnd.setDate(today.getDate() + 8);
+
+  switch (filter) {
+    case 'today':
+      return matches.filter((m) => sameDay(new Date(m.kickoffAt), today));
+    case 'tomorrow':
+      return matches.filter((m) => sameDay(new Date(m.kickoffAt), tomorrow));
+    case 'week':
+      return matches.filter((m) => {
+        const d = new Date(m.kickoffAt);
+        return d >= dayAfterTomorrow && d < weekEnd;
+      });
+    case 'bra':
+      return matches.filter(
+        (m) => m.homeTeam.code === 'BRA' || m.awayTeam.code === 'BRA',
+      );
+    case 'live':
+      return matches.filter((m) => m.status === 'LIVE');
+    case 'finished':
+      return matches.filter((m) => m.status === 'FINISHED');
+    default:
+      return matches;
+  }
+}
 
 export function MatchesView({ pools }: MatchesViewProps) {
   const [poolId, setPoolId] = useState(pools[0]?.id);
-  const [round, setRound] = useState('1');
+  const [filter, setFilter] = useState<FilterKey>('all');
+  const [view, setView] = useState<'palpites' | 'grupos'>('palpites');
 
-  const { data: matches, isLoading } = useQuery({
-    queryKey: ['matches', round],
-    queryFn: () => api<{ matches: MatchDTO[] }>(`/api/matches?round=${round}`),
+  const { data: allMatches, isLoading } = useQuery({
+    queryKey: ['matches', 'all'],
+    queryFn: () => api<{ matches: MatchDTO[] }>('/api/matches'),
     select: (d) => d.matches,
   });
+
   const { data: bets } = useQuery({
     queryKey: ['bets', poolId],
     queryFn: () => api<{ bets: BetDTO[] }>(`/api/bets?poolId=${poolId}`),
@@ -49,6 +98,7 @@ export function MatchesView({ pools }: MatchesViewProps) {
 
   const betByMatch = new Map((bets ?? []).map((b) => [b.matchId, b]));
   const selectedPool = pools.find((p) => p.id === poolId);
+  const filtered = filterMatches(allMatches ?? [], filter);
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
@@ -61,6 +111,7 @@ export function MatchesView({ pools }: MatchesViewProps) {
           </p>
         </div>
 
+        {/* Pool selector */}
         {pools.length > 1 && (
           <div className="flex flex-wrap gap-2">
             {pools.map((pool) => (
@@ -80,28 +131,80 @@ export function MatchesView({ pools }: MatchesViewProps) {
           </div>
         )}
 
-        <Tabs value={round} onValueChange={setRound}>
-          <TabsList className="w-full sm:w-auto">
-            {ROUNDS.map((r) => (
-              <TabsTrigger key={r.value} value={r.value} className="flex-1 sm:flex-none">
-                {r.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        {/* View toggle */}
+        <div className="flex overflow-hidden rounded-lg border border-border">
+          <button
+            onClick={() => setView('palpites')}
+            className={cn(
+              'flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors',
+              view === 'palpites'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent',
+            )}
+          >
+            <ListChecks className="h-4 w-4" />
+            Palpites
+          </button>
+          <button
+            onClick={() => setView('grupos')}
+            className={cn(
+              'flex flex-1 items-center justify-center gap-1.5 border-l border-border py-2 text-sm font-medium transition-colors',
+              view === 'grupos'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent',
+            )}
+          >
+            <Layers className="h-4 w-4" />
+            Grupos
+          </button>
+        </div>
 
-        {isLoading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 w-full" />
-            ))}
-          </div>
+        {view === 'palpites' ? (
+          <>
+            {/* Filter chips */}
+            <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+              {FILTERS.map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => setFilter(f.value)}
+                  className={cn(
+                    'whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                    filter === f.value
+                      ? 'border-primary bg-primary/15 text-primary'
+                      : 'border-border text-muted-foreground hover:bg-accent',
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Match cards */}
+            {isLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-28 w-full" />
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="rounded-lg border border-border/50 py-12 text-center text-sm text-muted-foreground">
+                Nenhum jogo encontrado para este filtro.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filtered.map((match) => (
+                  <MatchCard
+                    key={match.id}
+                    match={match}
+                    bet={betByMatch.get(match.id)}
+                    poolId={poolId}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         ) : (
-          <div className="space-y-3">
-            {(matches ?? []).map((match) => (
-              <MatchCard key={match.id} match={match} bet={betByMatch.get(match.id)} poolId={poolId} />
-            ))}
-          </div>
+          <GroupsView />
         )}
       </div>
 

@@ -57,6 +57,13 @@
   .text-balance {
     text-wrap: balance;
   }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
   .glass {
     @apply border border-white/5 bg-card/70 backdrop-blur-xl;
   }
