@@ -87,13 +87,6 @@ export const authService = {
       include: { user: true },
     });
     if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
-      // possível reuso de token → revoga todas as sessões do usuário
-      if (stored) {
-        await prisma.refreshToken.updateMany({
-          where: { userId: stored.userId, revokedAt: null },
-          data: { revokedAt: new Date() },
-        });
-      }
       throw new ApiError(401, 'Sessão expirada');
     }
 

@@ -19,7 +19,7 @@ export async function signAccessToken(payload: AccessTokenPayload): Promise<stri
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(payload.sub)
     .setIssuedAt()
-    .setExpirationTime(process.env.ACCESS_TOKEN_TTL ?? '15m')
+    .setExpirationTime(process.env.ACCESS_TOKEN_TTL ?? '1d')
     .sign(accessSecret());
 }
 
