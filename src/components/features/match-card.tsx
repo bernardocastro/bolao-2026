@@ -189,6 +189,16 @@ export function MatchCard({ match, bet, poolId, currentUserId }: MatchCardProps)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [showBets, setShowBets] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initializedRef = useRef(Boolean(bet));
+
+  // Sync inputs when bet loads asynchronously after mount
+  useEffect(() => {
+    if (bet && !initializedRef.current) {
+      initializedRef.current = true;
+      setHome(String(bet.homeScore));
+      setAway(String(bet.awayScore));
+    }
+  }, [bet]);
 
   const kickoffPassed = new Date(match.kickoffAt) <= new Date();
   const canReveal = poolId && kickoffPassed && match.status !== 'SCHEDULED' && match.status !== 'POSTPONED';
