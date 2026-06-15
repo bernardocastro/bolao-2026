@@ -20,6 +20,7 @@ import {
 import { updatePoolRulesSchema } from '@/server/pools/pool.dto';
 import { api, ClientApiError } from '@/lib/api-client';
 import { useQuery } from '@tanstack/react-query';
+import { PlayerCombobox } from '@/components/ui/player-combobox';
 import type { TopScorerPlayer } from '@/lib/top-scorer-players';
 import type { z } from 'zod';
 
@@ -95,7 +96,6 @@ export function PoolSettingsDialog({ pool }: { pool: PoolRulesInfo }) {
   const [open, setOpen] = useState(false);
   const [topScorerPlayer, setTopScorerPlayer] = useState('');
   const [isConfirming, setIsConfirming] = useState(false);
-  const [playerSearch, setPlayerSearch] = useState('');
 
   const { data: topScorerData } = useQuery({
     queryKey: ['top-scorer', pool.id],
@@ -150,17 +150,6 @@ export function PoolSettingsDialog({ pool }: { pool: PoolRulesInfo }) {
   }
 
   const allPlayers = topScorerData?.players ?? [];
-  const filteredPlayers = playerSearch.length >= 2
-    ? allPlayers.filter(
-        (p) =>
-          p.name.toLowerCase().includes(playerSearch.toLowerCase()) ||
-          p.country.toLowerCase().includes(playerSearch.toLowerCase()),
-      )
-    : allPlayers;
-  const byCountry = filteredPlayers.reduce<Record<string, TopScorerPlayer[]>>((acc, p) => {
-    (acc[p.country] ??= []).push(p);
-    return acc;
-  }, {});
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -222,28 +211,12 @@ export function PoolSettingsDialog({ pool }: { pool: PoolRulesInfo }) {
               <p className="text-xs text-muted-foreground">
                 Confirme o artilheiro ao fim do torneio. Esta ação distribui os pontos e não pode ser desfeita.
               </p>
-              <input
-                type="text"
-                placeholder="Buscar jogador ou seleção..."
-                value={playerSearch}
-                onChange={(e) => setPlayerSearch(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
-              />
-              <select
+              <PlayerCombobox
+                players={allPlayers}
                 value={topScorerPlayer}
-                onChange={(e) => setTopScorerPlayer(e.target.value)}
-                size={6}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none"
-              >
-                <option value="">— selecione —</option>
-                {Object.entries(byCountry).map(([country, players]) => (
-                  <optgroup key={country} label={country}>
-                    {players.map((p) => (
-                      <option key={p.name} value={p.name}>{p.name}</option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
+                onChange={setTopScorerPlayer}
+                placeholder="Selecione o artilheiro..."
+              />
               <Button
                 className="w-full bg-amber-500 text-white hover:bg-amber-600"
                 disabled={!topScorerPlayer}
