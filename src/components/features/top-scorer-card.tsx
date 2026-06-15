@@ -35,6 +35,7 @@ function useDeadlineLabel() {
 export function TopScorerCard({ poolId }: TopScorerCardProps) {
   const qc = useQueryClient();
   const [selected, setSelected] = useState<string>('');
+  const [search, setSearch] = useState('');
   const deadlineLabel = useDeadlineLabel();
 
   const { data, isLoading } = useQuery({
@@ -61,8 +62,16 @@ export function TopScorerCard({ poolId }: TopScorerCardProps) {
 
   const { players, pick, result, bonus, closed } = data;
 
-  // Group players by country for the select optgroups
-  const byCountry = players.reduce<Record<string, TopScorerPlayer[]>>((acc, p) => {
+  const filteredPlayers =
+    search.length >= 2
+      ? players.filter(
+          (p) =>
+            p.name.toLowerCase().includes(search.toLowerCase()) ||
+            p.country.toLowerCase().includes(search.toLowerCase()),
+        )
+      : players;
+
+  const byCountry = filteredPlayers.reduce<Record<string, TopScorerPlayer[]>>((acc, p) => {
     (acc[p.country] ??= []).push(p);
     return acc;
   }, {});
@@ -146,12 +155,20 @@ export function TopScorerCard({ poolId }: TopScorerCardProps) {
               ⏰ {deadlineLabel} · prazo: 17/06
             </p>
           )}
+          <input
+            type="text"
+            placeholder="Buscar jogador ou seleção..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+          />
           <select
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
+            size={5}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
           >
-            <option value="">Escolha o artilheiro...</option>
+            <option value="">— selecione —</option>
             {Object.entries(byCountry).map(([country, countryPlayers]) => (
               <optgroup key={country} label={country}>
                 {countryPlayers.map((p) => (

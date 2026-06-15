@@ -1,7 +1,8 @@
 import { withErrorHandling, parseBody, json, ApiError } from '@/lib/api';
 import { requireSession } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
-import { TOP_SCORER_PLAYERS, isTopScorerOpen } from '@/lib/top-scorer-players';
+import { isTopScorerOpen } from '@/lib/top-scorer-players';
+import { fetchAllRosterPlayers } from '@/server/football/espn-roster';
 import { z } from 'zod';
 
 const pickSchema = z.object({
@@ -9,15 +10,14 @@ const pickSchema = z.object({
   playerName: z.string().min(1),
 });
 
-const playerNames = new Set(TOP_SCORER_PLAYERS.map((p) => p.name));
-
 export const GET = withErrorHandling(async (req: Request) => {
   const session = await requireSession();
   const { searchParams } = new URL(req.url);
   const poolId = searchParams.get('poolId');
   if (!poolId) throw new ApiError(400, 'poolId obrigatório');
 
-  const [pick, pool] = await Promise.all([
+  const [players, pick, pool] = await Promise.all([
+    fetchAllRosterPlayers(),
     prisma.topScorerPick.findUnique({
       where: { userId_poolId: { userId: session.sub, poolId } },
       select: { playerName: true },
@@ -29,7 +29,7 @@ export const GET = withErrorHandling(async (req: Request) => {
   ]);
 
   return json({
-    players: TOP_SCORER_PLAYERS,
+    players,
     pick: pick?.playerName ?? null,
     result: pool?.topScorerResult ?? null,
     bonus: pool?.bonusTopScorer ?? 50,
@@ -42,7 +42,11 @@ export const POST = withErrorHandling(async (req: Request) => {
   if (!isTopScorerOpen()) throw new ApiError(403, 'Prazo encerrado para escolha do artilheiro');
 
   const { poolId, playerName } = await parseBody(req, pickSchema);
-  if (!playerNames.has(playerName)) throw new ApiError(400, 'Jogador inválido');
+
+  // Validate player exists in current rosters
+  const players = await fetchAllRosterPlayers();
+  const validNames = new Set(players.map((p) => p.name));
+  if (!validNames.has(playerName)) throw new ApiError(400, 'Jogador inválido');
 
   const member = await prisma.poolMember.findUnique({
     where: { poolId_userId: { poolId, userId: session.sub } },
