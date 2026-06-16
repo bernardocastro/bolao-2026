@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ListChecks, Layers } from 'lucide-react';
+import { ListChecks, Layers, Copy } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { MatchCard, type MatchDTO, type BetDTO } from '@/components/features/match-card';
 import { MatchesSidebar } from '@/components/features/matches-sidebar';
@@ -81,6 +81,18 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
   const [poolId, setPoolId] = useState(pools[0]?.id);
   const [filter, setFilter] = useState<FilterKey>('upcoming');
   const [view, setView] = useState<'palpites' | 'grupos'>('palpites');
+  const [replicateToAll, setReplicateToAll] = useState(
+    () => typeof window !== 'undefined' && localStorage.getItem('bolao:replicate-bets') === 'true',
+  );
+  const allPoolIds = pools.map((p) => p.id);
+
+  function toggleReplicate() {
+    setReplicateToAll((v) => {
+      const next = !v;
+      localStorage.setItem('bolao:replicate-bets', String(next));
+      return next;
+    });
+  }
 
   const { data: allMatches, isLoading } = useQuery({
     queryKey: ['matches', 'all'],
@@ -130,21 +142,39 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
 
         {/* Pool selector */}
         {pools.length > 1 && (
-          <div className="flex flex-wrap gap-2">
-            {pools.map((pool) => (
-              <button
-                key={pool.id}
-                onClick={() => setPoolId(pool.id)}
-                className={cn(
-                  'rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
-                  pool.id === poolId
-                    ? 'border-primary bg-primary/15 text-primary'
-                    : 'border-border text-muted-foreground hover:bg-accent',
-                )}
-              >
-                {pool.name}
-              </button>
-            ))}
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              {pools.map((pool) => (
+                <button
+                  key={pool.id}
+                  onClick={() => setPoolId(pool.id)}
+                  className={cn(
+                    'rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                    replicateToAll
+                      ? 'border-border text-muted-foreground'
+                      : pool.id === poolId
+                        ? 'border-primary bg-primary/15 text-primary'
+                        : 'border-border text-muted-foreground hover:bg-accent',
+                  )}
+                >
+                  {pool.name}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={toggleReplicate}
+              className={cn(
+                'flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                replicateToAll
+                  ? 'border-primary bg-primary/15 text-primary'
+                  : 'border-border text-muted-foreground hover:bg-accent',
+              )}
+            >
+              <Copy className="h-3.5 w-3.5" />
+              {replicateToAll
+                ? `Replicando para todos os ${pools.length} bolões`
+                : 'Replicar para todos os bolões'}
+            </button>
           </div>
         )}
 
@@ -242,6 +272,8 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
                     bet={betByMatch.get(match.id)}
                     poolId={poolId}
                     currentUserId={currentUserId}
+                    replicateToAll={replicateToAll && pools.length > 1}
+                    allPoolIds={allPoolIds}
                   />
                 ))}
               </div>

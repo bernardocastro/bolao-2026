@@ -57,7 +57,7 @@ function scoreBet(
 
 async function main() {
   // ── Fetch relevant matches ────────────────────────────────────────────────
-  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const matches = await prisma.match.findMany({
     where: {
       OR: [

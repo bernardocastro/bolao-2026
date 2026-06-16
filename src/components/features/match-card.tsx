@@ -75,6 +75,8 @@ interface MatchCardProps {
   bet?: BetDTO;
   poolId?: string;
   currentUserId?: string;
+  replicateToAll?: boolean;
+  allPoolIds?: string[];
 }
 
 function outcomeRank(entry: MatchBetEntry): number {
@@ -224,7 +226,7 @@ function ScoreInput({
 
 type SaveStatus = 'idle' | 'saving' | 'saved';
 
-export function MatchCard({ match, bet, poolId, currentUserId }: MatchCardProps) {
+export function MatchCard({ match, bet, poolId, currentUserId, replicateToAll, allPoolIds }: MatchCardProps) {
   const queryClient = useQueryClient();
   const [home, setHome] = useState(bet ? String(bet.homeScore) : '');
   const [away, setAway] = useState(bet ? String(bet.awayScore) : '');
@@ -248,15 +250,23 @@ export function MatchCard({ match, bet, poolId, currentUserId }: MatchCardProps)
   const locked = match.status !== 'SCHEDULED' || new Date(match.kickoffAt) <= new Date();
   const dirty = home !== (bet ? String(bet.homeScore) : '') || away !== (bet ? String(bet.awayScore) : '');
 
+  const targetPoolIds = replicateToAll && allPoolIds?.length ? allPoolIds : poolId ? [poolId] : [];
+
   const save = useMutation({
     mutationFn: () =>
-      api('/api/bets', {
-        method: 'PUT',
-        json: { poolId, matchId: match.id, homeScore: Number(home), awayScore: Number(away) },
-      }),
+      Promise.all(
+        targetPoolIds.map((pid) =>
+          api('/api/bets', {
+            method: 'PUT',
+            json: { poolId: pid, matchId: match.id, homeScore: Number(home), awayScore: Number(away) },
+          }),
+        ),
+      ),
     onSuccess: () => {
       setSaveStatus('saved');
-      void queryClient.invalidateQueries({ queryKey: ['bets', poolId] });
+      for (const pid of targetPoolIds) {
+        void queryClient.invalidateQueries({ queryKey: ['bets', pid] });
+      }
       timerRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
     },
     onError: (error) => {
@@ -409,10 +419,17 @@ export function MatchCard({ match, bet, poolId, currentUserId }: MatchCardProps)
             className="mt-2 flex items-center justify-center gap-1.5 text-xs"
           >
             {saveStatus === 'saving' ? (
-              <span className="text-muted-foreground">Salvando…</span>
+              <span className="text-muted-foreground">
+                {replicateToAll && targetPoolIds.length > 1
+                  ? `Salvando em ${targetPoolIds.length} bolões…`
+                  : 'Salvando…'}
+              </span>
             ) : (
               <span className="flex items-center gap-1 text-green-500">
-                <Check className="h-3 w-3" /> Salvo
+                <Check className="h-3 w-3" />
+                {replicateToAll && targetPoolIds.length > 1
+                  ? `Salvo em ${targetPoolIds.length} bolões`
+                  : 'Salvo'}
               </span>
             )}
           </motion.div>
