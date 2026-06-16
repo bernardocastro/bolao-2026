@@ -77,14 +77,25 @@ interface MatchCardProps {
   currentUserId?: string;
 }
 
+function outcomeRank(entry: MatchBetEntry): number {
+  if (entry.status !== 'SCORED') return 3;
+  if (entry.isExactScore) return 0;
+  if (entry.isCorrectWinner) return 1;
+  return 2;
+}
+
 function MatchBetsList({
   matchId,
   poolId,
   currentUserId,
+  matchHomeScore,
+  matchAwayScore,
 }: {
   matchId: string;
   poolId: string;
   currentUserId?: string;
+  matchHomeScore?: number | null;
+  matchAwayScore?: number | null;
 }) {
   const { data, isLoading } = useQuery({
     queryKey: ['match-bets', matchId, poolId],
@@ -112,17 +123,40 @@ function MatchBetsList({
     );
   }
 
+  const isResultKnown = matchHomeScore != null && matchAwayScore != null;
+  const anyScored = data.some((e) => e.status === 'SCORED');
+  const sorted = [...data].sort((a, b) => outcomeRank(a) - outcomeRank(b));
+
   return (
     <div className="mt-2 space-y-1.5">
-      {data.map((entry) => {
+      {/* Official result reference row */}
+      {isResultKnown && anyScored && (
+        <div className="flex items-center justify-between rounded-md border border-border/60 bg-muted/40 px-2.5 py-1.5 text-xs">
+          <span className="text-muted-foreground">Resultado oficial</span>
+          <span className="font-black tabular-nums">
+            {matchHomeScore} × {matchAwayScore}
+          </span>
+        </div>
+      )}
+
+      {sorted.map((entry) => {
         const isMe = entry.user.id === currentUserId;
+        const scored = entry.status === 'SCORED';
+
+        const rowClass = scored
+          ? entry.isExactScore
+            ? 'border-l-2 border-l-green-500 bg-green-500/8'
+            : entry.isCorrectWinner
+              ? 'border-l-2 border-l-amber-500 bg-amber-500/8'
+              : 'border-l-2 border-l-border bg-secondary/30'
+          : isMe
+            ? 'bg-primary/10'
+            : 'bg-secondary/30';
+
         return (
           <div
             key={entry.user.id}
-            className={cn(
-              'flex items-center gap-2 rounded-md px-2 py-1.5 text-xs',
-              isMe ? 'bg-primary/10' : 'bg-secondary/30',
-            )}
+            className={cn('flex items-center gap-2 rounded-md px-2 py-1.5 text-xs', rowClass)}
           >
             <Avatar className="h-6 w-6 shrink-0">
               <AvatarImage src={entry.user.avatarUrl ?? undefined} />
@@ -131,10 +165,17 @@ function MatchBetsList({
             <span className={cn('min-w-0 flex-1 truncate font-medium', isMe && 'text-primary')}>
               {isMe ? 'Você' : entry.user.name}
             </span>
-            <span className="shrink-0 font-black tabular-nums">
+            <span
+              className={cn(
+                'shrink-0 font-black tabular-nums',
+                scored && entry.isExactScore && 'text-green-600 dark:text-green-400',
+                scored && entry.isCorrectWinner && !entry.isExactScore && 'text-amber-600 dark:text-amber-400',
+                scored && !entry.isCorrectWinner && 'text-muted-foreground',
+              )}
+            >
               {entry.homeScore} × {entry.awayScore}
             </span>
-            {entry.status === 'SCORED' && (
+            {scored && (
               <Badge
                 variant={
                   entry.pointsEarned > 0
@@ -145,7 +186,8 @@ function MatchBetsList({
                 }
                 className="shrink-0 text-[10px]"
               >
-                {entry.isExactScore && '🎯 '}+{entry.pointsEarned}
+                {entry.isExactScore ? '🎯 ' : entry.isCorrectWinner ? '✅ ' : ''}
+                +{entry.pointsEarned}
               </Badge>
             )}
           </div>
@@ -402,6 +444,8 @@ export function MatchCard({ match, bet, poolId, currentUserId }: MatchCardProps)
                   matchId={match.id}
                   poolId={poolId}
                   currentUserId={currentUserId}
+                  matchHomeScore={match.homeScore}
+                  matchAwayScore={match.awayScore}
                 />
               </motion.div>
             )}
