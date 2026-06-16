@@ -237,7 +237,7 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
               <div className="space-y-3">
                 {filtered.map((match) => (
                   <MatchCard
-                    key={match.id}
+                    key={`${match.id}-${poolId}`}
                     match={match}
                     bet={betByMatch.get(match.id)}
                     poolId={poolId}
