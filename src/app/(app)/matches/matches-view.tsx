@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ListChecks, Layers, Copy } from 'lucide-react';
+import { ListChecks, Layers } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { MatchCard, type MatchDTO, type BetDTO } from '@/components/features/match-card';
 import { MatchesSidebar } from '@/components/features/matches-sidebar';
@@ -142,7 +142,7 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
 
         {/* Pool selector */}
         {pools.length > 1 && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
               {pools.map((pool) => (
                 <button
@@ -150,11 +150,9 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
                   onClick={() => setPoolId(pool.id)}
                   className={cn(
                     'rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
-                    replicateToAll
-                      ? 'border-border text-muted-foreground'
-                      : pool.id === poolId
-                        ? 'border-primary bg-primary/15 text-primary'
-                        : 'border-border text-muted-foreground hover:bg-accent',
+                    pool.id === poolId
+                      ? 'border-primary bg-primary/15 text-primary'
+                      : 'border-border text-muted-foreground hover:bg-accent',
                   )}
                 >
                   {pool.name}
@@ -163,17 +161,25 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
             </div>
             <button
               onClick={toggleReplicate}
-              className={cn(
-                'flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
-                replicateToAll
-                  ? 'border-primary bg-primary/15 text-primary'
-                  : 'border-border text-muted-foreground hover:bg-accent',
-              )}
+              className="flex items-center gap-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
-              <Copy className="h-3.5 w-3.5" />
-              {replicateToAll
-                ? `Replicando para todos os ${pools.length} bolões`
-                : 'Replicar para todos os bolões'}
+              {/* toggle track */}
+              <div
+                className={cn(
+                  'relative h-5 w-9 shrink-0 rounded-full transition-colors',
+                  replicateToAll ? 'bg-primary' : 'bg-input',
+                )}
+              >
+                <div
+                  className={cn(
+                    'absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform',
+                    replicateToAll ? 'translate-x-4' : 'translate-x-0.5',
+                  )}
+                />
+              </div>
+              <span className={replicateToAll ? 'text-foreground' : ''}>
+                Replicar palpites para todos os bolões
+              </span>
             </button>
           </div>
         )}
