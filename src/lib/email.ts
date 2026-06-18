@@ -1,9 +1,9 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = process.env.EMAIL_FROM ?? 'Bolão 2026 <no-reply@bolao2026.app>';
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
+  const resend = new Resend(process.env.RESEND_API_KEY);
   await resend.emails.send({
     from: FROM,
     to,

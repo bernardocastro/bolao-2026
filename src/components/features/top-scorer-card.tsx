@@ -45,6 +45,7 @@ export function TopScorerCard({ poolId }: TopScorerCardProps) {
 
   useEffect(() => {
     if (data?.pick && !selected) setSelected(data.pick);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.pick]);
 
   const { mutate: savePick, isPending: isSaving } = useMutation({
