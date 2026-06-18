@@ -82,14 +82,18 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
   const [filter, setFilter] = useState<FilterKey>('upcoming');
   const [view, setView] = useState<'palpites' | 'grupos'>('palpites');
   const [replicateToAll, setReplicateToAll] = useState(
-    () => typeof window !== 'undefined' && localStorage.getItem('bolao:replicate-bets') === 'true',
+    () => typeof window === 'undefined' || localStorage.getItem('bolao:replicate-bets') !== 'false',
   );
   const allPoolIds = pools.map((p) => p.id);
 
   function toggleReplicate() {
     setReplicateToAll((v) => {
       const next = !v;
-      localStorage.setItem('bolao:replicate-bets', String(next));
+      if (next) {
+        localStorage.removeItem('bolao:replicate-bets');
+      } else {
+        localStorage.setItem('bolao:replicate-bets', 'false');
+      }
       return next;
     });
   }
