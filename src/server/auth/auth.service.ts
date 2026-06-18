@@ -4,6 +4,7 @@ import { nanoid } from 'nanoid';
 import { prisma } from '@/lib/prisma';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '@/lib/jwt';
 import { ApiError } from '@/lib/api';
+import { sendPasswordResetEmail } from '@/lib/email';
 import type { LoginInput, PublicUser, RegisterInput } from './auth.dto';
 
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -105,7 +106,7 @@ export const authService = {
     });
   },
 
-  /** Gera token de reset. Em produção, envia por e-mail (SMTP). */
+  /** Gera token de reset e envia e-mail via Resend. */
   async requestPasswordReset(email: string): Promise<{ debugToken?: string }> {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return {}; // não revela existência do e-mail
@@ -117,7 +118,11 @@ export const authService = {
         expiresAt: new Date(Date.now() + 30 * 60_000),
       },
     });
-    // TODO: enviar e-mail via SMTP configurado em .env
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? 'http://localhost:3000';
+    const resetUrl = `${appUrl}/reset-password?token=${token}`;
+    if (process.env.RESEND_API_KEY) {
+      await sendPasswordResetEmail(email, resetUrl);
+    }
     return process.env.NODE_ENV !== 'production' ? { debugToken: token } : {};
   },
 
