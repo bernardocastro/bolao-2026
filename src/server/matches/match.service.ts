@@ -38,11 +38,20 @@ export const matchService = {
   },
 
   async standings() {
-    return cached('standings', 120, () =>
+    const rows = await cached('standings', 120, () =>
       prisma.standing.findMany({
         include: { team: true },
         orderBy: [{ groupName: 'asc' }, { points: 'desc' }, { goalsFor: 'desc' }],
       }),
     );
+    // Sort in memory with proper FIFA tiebreakers: pts → GD → GF
+    return [...rows].sort((a, b) => {
+      if (a.groupName !== b.groupName) return a.groupName.localeCompare(b.groupName);
+      if (b.points !== a.points) return b.points - a.points;
+      const gdA = a.goalsFor - a.goalsAgainst;
+      const gdB = b.goalsFor - b.goalsAgainst;
+      if (gdB !== gdA) return gdB - gdA;
+      return b.goalsFor - a.goalsFor;
+    });
   },
 };

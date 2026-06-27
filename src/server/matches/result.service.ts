@@ -149,9 +149,9 @@ export const resultService = {
     if (match.stage !== 'GROUP' || !match.groupName) return;
 
     const apply = async (teamId: string, gf: number, ga: number) => {
-      await prisma.standing.update({
+      await prisma.standing.upsert({
         where: { teamId_groupName: { teamId, groupName: match.groupName! } },
-        data: {
+        update: {
           played: { increment: 1 },
           won: { increment: gf > ga ? 1 : 0 },
           drawn: { increment: gf === ga ? 1 : 0 },
@@ -159,6 +159,17 @@ export const resultService = {
           goalsFor: { increment: gf },
           goalsAgainst: { increment: ga },
           points: { increment: gf > ga ? 3 : gf === ga ? 1 : 0 },
+        },
+        create: {
+          teamId,
+          groupName: match.groupName!,
+          played: 1,
+          won: gf > ga ? 1 : 0,
+          drawn: gf === ga ? 1 : 0,
+          lost: gf < ga ? 1 : 0,
+          goalsFor: gf,
+          goalsAgainst: ga,
+          points: gf > ga ? 3 : gf === ga ? 1 : 0,
         },
       });
     };
