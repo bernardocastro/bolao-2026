@@ -31,7 +31,6 @@ export interface PoolRulesInfo {
   pointsExactScore: number;
   pointsGoalDiff: number;
   pointsCorrectWinner: number;
-  bonusUnderdog: number;
   bonusUniqueHit: number;
   bonusTopScorer: number;
   topScorerResult: string | null;
@@ -41,7 +40,6 @@ const RULE_ROWS: Array<{ key: keyof PoolRulesInfo; emoji: string; label: string;
   { key: 'pointsExactScore', emoji: '🎯', label: 'Placar exato', hint: 'Cravou o placar do jogo' },
   { key: 'pointsGoalDiff', emoji: '📐', label: 'Diferença de gols', hint: 'Acertou vencedor e saldo de gols' },
   { key: 'pointsCorrectWinner', emoji: '✅', label: 'Vencedor correto', hint: 'Acertou quem venceu (ou o empate)' },
-  { key: 'bonusUnderdog', emoji: '🦓', label: 'Bônus zebra', hint: 'Acertou vitória do azarão (acumula)' },
   { key: 'bonusUniqueHit', emoji: '🏅', label: 'Bônus solitário', hint: 'Único do bolão a acertar (acumula)' },
   { key: 'bonusTopScorer', emoji: '🥅', label: 'Artilheiro do torneio', hint: 'Acertou o artilheiro até 17/06' },
 ];
@@ -115,7 +113,6 @@ export function PoolSettingsDialog({ pool }: { pool: PoolRulesInfo }) {
       pointsExactScore: pool.pointsExactScore,
       pointsGoalDiff: pool.pointsGoalDiff,
       pointsCorrectWinner: pool.pointsCorrectWinner,
-      bonusUnderdog: pool.bonusUnderdog,
       bonusUniqueHit: pool.bonusUniqueHit,
     },
   });

@@ -15,7 +15,6 @@ const RULES: Array<{ key: keyof CreatePoolInput; label: string; hint: string }> 
   { key: 'pointsExactScore', label: 'Placar exato', hint: 'Cravou o placar' },
   { key: 'pointsGoalDiff', label: 'Diferença de gols', hint: 'Acertou vencedor e saldo' },
   { key: 'pointsCorrectWinner', label: 'Vencedor correto', hint: 'Acertou só o resultado' },
-  { key: 'bonusUnderdog', label: 'Bônus zebra', hint: 'Acertou vitória do azarão' },
   { key: 'bonusUniqueHit', label: 'Bônus único', hint: 'Único a acertar no bolão' },
 ];
 
@@ -33,7 +32,6 @@ export default function NewPoolPage() {
       pointsExactScore: 10,
       pointsGoalDiff: 7,
       pointsCorrectWinner: 5,
-      bonusUnderdog: 3,
       bonusUniqueHit: 2,
     },
   });

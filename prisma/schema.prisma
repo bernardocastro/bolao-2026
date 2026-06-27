@@ -177,7 +177,6 @@ model Pool {
   pointsExactScore    Int @default(10)
   pointsCorrectWinner Int @default(5)
   pointsGoalDiff      Int @default(7)
-  bonusUnderdog       Int @default(3) // acertou zebra
   bonusUniqueHit      Int @default(2) // único a acertar no bolão
   bonusTopScorer      Int @default(50) // acertou o artilheiro do torneio
 

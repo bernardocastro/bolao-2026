@@ -66,7 +66,6 @@ export const resultService = {
         pointsExactScore: pool.pointsExactScore,
         pointsCorrectWinner: pool.pointsCorrectWinner,
         pointsGoalDiff: pool.pointsGoalDiff,
-        bonusUnderdog: pool.bonusUnderdog,
         bonusUniqueHit: pool.bonusUniqueHit,
       };
 

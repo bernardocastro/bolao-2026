@@ -6,16 +6,12 @@ export interface ScoringRules {
   pointsExactScore: number;
   pointsCorrectWinner: number;
   pointsGoalDiff: number;
-  bonusUnderdog: number;
   bonusUniqueHit: number;
 }
 
 export interface MatchResult {
   homeScore: number;
   awayScore: number;
-  /** rankings FIFA aproximados para detectar zebra (menor = mais forte) */
-  homeRank?: number;
-  awayRank?: number;
 }
 
 export interface BetInput {
@@ -28,7 +24,6 @@ export interface BetScore {
   isExactScore: boolean;
   isCorrectWinner: boolean;
   isGoalDiff: boolean;
-  isUnderdogHit: boolean;
 }
 
 type Outcome = 'HOME' | 'AWAY' | 'DRAW';
@@ -51,23 +46,12 @@ export function scoreBet(bet: BetInput, result: MatchResult, rules: ScoringRules
     !isExactScore &&
     bet.homeScore - bet.awayScore === result.homeScore - result.awayScore;
 
-  // zebra: vitória do time pior ranqueado (diferença >= 20 posições)
-  const isUnderdogHit =
-    isCorrectWinner &&
-    realOutcome !== 'DRAW' &&
-    result.homeRank !== undefined &&
-    result.awayRank !== undefined &&
-    ((realOutcome === 'HOME' && result.homeRank - result.awayRank >= 20) ||
-      (realOutcome === 'AWAY' && result.awayRank - result.homeRank >= 20));
-
   let points = 0;
   if (isExactScore) points = rules.pointsExactScore;
   else if (isGoalDiff) points = rules.pointsGoalDiff;
   else if (isCorrectWinner) points = rules.pointsCorrectWinner;
 
-  if (isUnderdogHit) points += rules.bonusUnderdog;
-
-  return { points, isExactScore, isCorrectWinner, isGoalDiff, isUnderdogHit };
+  return { points, isExactScore, isCorrectWinner, isGoalDiff };
 }
 
 /** Aplica bônus de "único a acertar" sobre os scores já calculados. */

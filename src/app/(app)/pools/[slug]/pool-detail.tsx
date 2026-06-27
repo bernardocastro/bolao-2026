@@ -23,7 +23,6 @@ interface PoolDetailProps {
     pointsExactScore: number;
     pointsGoalDiff: number;
     pointsCorrectWinner: number;
-    bonusUnderdog: number;
     bonusUniqueHit: number;
     bonusTopScorer: number;
     topScorerResult: string | null;

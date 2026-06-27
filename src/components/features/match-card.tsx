@@ -33,12 +33,14 @@ export interface MatchDTO {
   awayScore: number | null;
   homeTeam: TeamDTO | null;
   awayTeam: TeamDTO | null;
-  homePlaceholder: string | null;
-  awayPlaceholder: string | null;
   oddsHome: number | null;
   oddsDraw: number | null;
   oddsAway: number | null;
+  homePlaceholder: string | null;
+  awayPlaceholder: string | null;
+
 }
+
 
 function impliedProb(american: number): number {
   return american > 0
@@ -55,8 +57,6 @@ function toPcts(home: number, draw: number, away: number): [number, number, numb
   const pD = Math.round((d / total) * 100);
   return [pH, pD, 100 - pH - pD];
 }
-
-const AZARAO_THRESHOLD = 150; // moneyline >= +150 = azarão
 
 const STAGE_LABELS: Record<string, string> = {
   ROUND_OF_32: '16 avos de final',
@@ -366,11 +366,6 @@ export function MatchCard({ match, bet, poolId, currentUserId, replicateToAll, a
         <div className="flex min-w-0 flex-1 flex-col items-end gap-1">
           <div className="flex min-w-0 items-center justify-end gap-1">
             <TeamLabel team={match.homeTeam} placeholder={match.homePlaceholder} side="home" />
-            {match.oddsHome !== null && match.oddsHome >= AZARAO_THRESHOLD && (
-              <Badge variant="outline" className="shrink-0 border-amber-500/50 px-1.5 py-0 text-[10px] text-amber-500">
-                Azarão
-              </Badge>
-            )}
           </div>
         </div>
 
@@ -395,14 +390,10 @@ export function MatchCard({ match, bet, poolId, currentUserId, replicateToAll, a
         <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
           <div className="flex min-w-0 items-center gap-1">
             <TeamLabel team={match.awayTeam} placeholder={match.awayPlaceholder} side="away" />
-            {match.oddsAway !== null && match.oddsAway >= AZARAO_THRESHOLD && (
-              <Badge variant="outline" className="shrink-0 border-amber-500/50 px-1.5 py-0 text-[10px] text-amber-500">
-                Azarão
-              </Badge>
-            )}
           </div>
         </div>
       </div>
+
 
       {match.status === 'SCHEDULED' && match.homeTeam && match.awayTeam && match.oddsHome !== null && match.oddsDraw !== null && match.oddsAway !== null && (() => {
         const [pH, pD, pA] = toPcts(match.oddsHome, match.oddsDraw, match.oddsAway);

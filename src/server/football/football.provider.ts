@@ -218,7 +218,6 @@ class EspnFootballProvider implements FootballProvider {
         const n = parseInt(raw, 10);
         return isNaN(n) ? null : n;
       };
-      // Odds only available for upcoming matches; ESPN drops them after kick-off
       const oddsHome = isPre ? parseOdds(oddsEntry?.moneyline?.home?.close?.odds) : null;
       const oddsDraw = isPre ? parseOdds(oddsEntry?.moneyline?.draw?.close?.odds) : null;
       const oddsAway = isPre ? parseOdds(oddsEntry?.moneyline?.away?.close?.odds) : null;

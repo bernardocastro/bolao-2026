@@ -8,7 +8,6 @@ export const createPoolSchema = z.object({
   pointsExactScore: z.number().int().min(0).max(100).default(10),
   pointsCorrectWinner: z.number().int().min(0).max(100).default(5),
   pointsGoalDiff: z.number().int().min(0).max(100).default(7),
-  bonusUnderdog: z.number().int().min(0).max(100).default(3),
   bonusUniqueHit: z.number().int().min(0).max(100).default(2),
   bonusTopScorer: z.number().int().min(0).max(200).default(50),
 });
