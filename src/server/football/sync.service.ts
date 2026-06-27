@@ -109,7 +109,8 @@ export const syncService = {
         }
 
         // 3) jogo ao vivo: placar parcial em tempo real
-        if (fixture.status === 'LIVE' && homeScore !== null && awayScore !== null) {
+        // skip if already scored — provider can lag and keep returning LIVE after the match ended
+        if (fixture.status === 'LIVE' && homeScore !== null && awayScore !== null && !match.scoredAt) {
           if (
             match.status !== 'LIVE' ||
             match.homeScore !== homeScore ||
@@ -142,6 +143,13 @@ export const syncService = {
             status: 'FINISHED',
           });
           summary.finishedProcessed++;
+        }
+
+        // 4b) self-heal: match already scored but status got stuck (race condition between
+        //     concurrent sync runs — one run set LIVE while the other was mid-scoring)
+        if (match.scoredAt && match.status !== 'FINISHED' && match.status !== 'POSTPONED') {
+          await prisma.match.update({ where: { id: match.id }, data: { status: 'FINISHED' } });
+          await invalidateMatchCaches();
         }
 
         if (fixture.status === 'POSTPONED' && match.status === 'SCHEDULED') {
