@@ -135,7 +135,7 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
   const filtered = filterMatches(allMatches ?? [], filter);
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
+    <div className={cn('grid grid-cols-1 gap-6', view !== 'mata-mata' && 'lg:grid-cols-[1fr_280px]')}>
       {/* Main column */}
       <div className="min-w-0 space-y-5">
         <div>
@@ -296,8 +296,8 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
         )}
       </div>
 
-      {/* Sidebar */}
-      <aside className="hidden lg:block">
+      {/* Sidebar — hidden in mata-mata view (bracket needs full width) */}
+      <aside className={cn('hidden', view !== 'mata-mata' && 'lg:block')}>
         <div className="sticky top-20">
           <MatchesSidebar poolId={poolId} poolName={selectedPool?.name} />
         </div>

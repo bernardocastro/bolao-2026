@@ -9,9 +9,9 @@ import { cn } from '@/lib/utils';
 import type { MatchDTO } from '@/components/features/match-card';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
-const SLOT_H = 56;   // px — height of one match slot
-const COL_W  = 148;  // px — width of one round column
-const CONN_W = 40;   // px — width of the SVG connector between columns
+const SLOT_H = 60;   // px — height of one match slot
+const COL_W  = 172;  // px — width of one round column
+const CONN_W = 36;   // px — width of the SVG connector between columns
 
 // Knockout rounds in bracket order (THIRD_PLACE is rendered separately below)
 const BRACKET_STAGES = [
