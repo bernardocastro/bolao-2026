@@ -261,15 +261,15 @@ function placeholderToLabel(code: string | null | undefined): string {
 function TeamLabel({ team, placeholder, side }: { team: { name: string; code: string; flagUrl: string } | null; placeholder?: string | null; side: 'home' | 'away' }) {
   const label = team ? undefined : placeholderToLabel(placeholder);
   return (
-    <div className={cn('flex items-center gap-2', side === 'home' ? 'flex-row-reverse' : 'flex-row')}>
+    <div className={cn('flex min-w-0 items-center gap-2', side === 'home' ? 'flex-row-reverse' : 'flex-row')}>
       {team ? (
         <Image src={team.flagUrl} alt={team.name} width={32} height={22} className="shrink-0 rounded-sm object-cover" />
       ) : (
         <div className="h-[22px] w-8 shrink-0 rounded-sm bg-muted" />
       )}
-      <div className={cn('flex flex-col gap-0.5', side === 'home' ? 'items-end text-right' : 'items-start')}>
-        <span className="hidden text-sm font-semibold sm:block">{team?.name ?? label}</span>
-        <span className="text-sm font-semibold sm:hidden">{team?.code ?? '???'}</span>
+      <div className={cn('flex min-w-0 flex-col gap-0.5', side === 'home' ? 'items-end text-right' : 'items-start')}>
+        <span className="hidden truncate text-sm font-semibold sm:block">{team?.name ?? label}</span>
+        <span className="truncate text-sm font-semibold sm:hidden">{team?.code ?? '???'}</span>
       </div>
     </div>
   );
@@ -363,11 +363,11 @@ export function MatchCard({ match, bet, poolId, currentUserId, replicateToAll, a
       </div>
 
       <div className="flex items-center justify-between gap-2">
-        <div className="flex flex-1 flex-col items-end gap-1">
-          <div className="flex items-center justify-end gap-1">
+        <div className="flex min-w-0 flex-1 flex-col items-end gap-1">
+          <div className="flex min-w-0 items-center justify-end gap-1">
             <TeamLabel team={match.homeTeam} placeholder={match.homePlaceholder} side="home" />
             {match.oddsHome !== null && match.oddsHome >= AZARAO_THRESHOLD && (
-              <Badge variant="outline" className="w-fit max-w-[4rem] border-amber-500/50 px-1.5 py-0 text-[10px] text-amber-500">
+              <Badge variant="outline" className="shrink-0 border-amber-500/50 px-1.5 py-0 text-[10px] text-amber-500">
                 Azarão
               </Badge>
             )}
@@ -392,11 +392,11 @@ export function MatchCard({ match, bet, poolId, currentUserId, replicateToAll, a
           )}
         </div>
 
-        <div className="flex flex-1 flex-col items-start gap-1">
-          <div className="flex items-center gap-1">
+        <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
+          <div className="flex min-w-0 items-center gap-1">
             <TeamLabel team={match.awayTeam} placeholder={match.awayPlaceholder} side="away" />
             {match.oddsAway !== null && match.oddsAway >= AZARAO_THRESHOLD && (
-              <Badge variant="outline" className="w-fit max-w-[4rem] border-amber-500/50 px-1.5 py-0 text-[10px] text-amber-500">
+              <Badge variant="outline" className="shrink-0 border-amber-500/50 px-1.5 py-0 text-[10px] text-amber-500">
                 Azarão
               </Badge>
             )}
