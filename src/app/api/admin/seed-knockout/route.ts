@@ -17,15 +17,15 @@ async function authorize(req: Request): Promise<void> {
   if (session?.role !== 'ADMIN') throw new ApiError(401, 'Não autorizado');
 }
 
-/** ESPN abbreviation → stage mapping based on date windows */
+/** Maps match date to knockout stage based on 2026 WC schedule */
 function stageForDate(dateStr: string): MatchStage {
   const d = dateStr.slice(0, 10);
-  if (d <= '2026-07-07') return 'ROUND_OF_32';
-  if (d <= '2026-07-12') return 'ROUND_OF_16';
-  if (d <= '2026-07-15') return 'QUARTER_FINAL';
-  if (d === '2026-07-18') return 'THIRD_PLACE';
-  if (d <= '2026-07-19') return 'SEMI_FINAL';
-  return 'FINAL';
+  if (d <= '2026-07-04') return 'ROUND_OF_32';   // 16 avos: Jun 29 – Jul 4
+  if (d <= '2026-07-08') return 'ROUND_OF_16';   // oitavas: Jul 5–8
+  if (d <= '2026-07-12') return 'QUARTER_FINAL'; // quartas: Jul 9–12
+  if (d <= '2026-07-15') return 'SEMI_FINAL';    // semi: Jul 14–15
+  if (d <= '2026-07-18') return 'THIRD_PLACE';   // 3º lugar: Jul 18
+  return 'FINAL';                                  // final: Jul 19
 }
 
 /** Translate ESPN placeholder codes to readable labels */
@@ -135,18 +135,19 @@ export const POST = withErrorHandling(async (req: Request) => {
       });
       created++;
     } else {
-      // Update if teams were previously TBD and are now known
-      const needsTeamUpdate =
+      const needsUpdate =
+        existing.stage !== stage ||
         (existing.homeTeamId === null && homeTeamId !== null) ||
         (existing.awayTeamId === null && awayTeamId !== null);
 
-      if (needsTeamUpdate) {
+      if (needsUpdate) {
         await prisma.match.update({
           where: { id: existing.id },
           data: {
+            stage,
+            kickoffAt,
             ...(existing.homeTeamId === null && homeTeamId ? { homeTeamId, homePlaceholder: null } : {}),
             ...(existing.awayTeamId === null && awayTeamId ? { awayTeamId, awayPlaceholder: null } : {}),
-            kickoffAt,
           },
         });
         updated++;
