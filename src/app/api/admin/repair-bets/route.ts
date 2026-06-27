@@ -100,7 +100,7 @@ export const POST = withErrorHandling(async (req: Request) => {
         if (!sourceBet) continue;
 
         const userName = userBets[0]?.user.name ?? userId;
-        const matchLabel = `${match.homeTeam.name} vs ${match.awayTeam.name}`;
+        const matchLabel = `${match.homeTeam?.name ?? "?"} vs ${match.awayTeam?.name ?? "?"}`;
         const isScored = !!match.scoredAt;
 
         if (dryRun) {

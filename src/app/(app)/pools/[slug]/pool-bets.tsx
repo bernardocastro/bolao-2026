@@ -64,7 +64,7 @@ function filterMatches(matches: MatchDTO[], filter: FilterKey): MatchDTO[] {
       });
     case 'bra':
       return matches.filter(
-        (m) => m.homeTeam.code === 'BRA' || m.awayTeam.code === 'BRA',
+        (m) => m.homeTeam?.code === 'BRA' || m.awayTeam?.code === 'BRA',
       );
     case 'live':
       return matches.filter((m) => m.status === 'LIVE');

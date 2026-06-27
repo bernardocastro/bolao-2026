@@ -55,7 +55,7 @@ export function MatchesSidebar({ poolId, poolName }: MatchesSidebarProps) {
   const progressPct = totalBettable > 0 ? Math.round((betsTotal / totalBettable) * 100) : 0;
 
   const curiosity = nextMatch
-    ? (getCuriosity(nextMatch.homeTeam.code) ?? getCuriosity(nextMatch.awayTeam.code))
+    ? (getCuriosity(nextMatch.homeTeam?.code ?? '') ?? getCuriosity(nextMatch.awayTeam?.code ?? ''))
     : null;
 
   return (
@@ -104,25 +104,21 @@ export function MatchesSidebar({ poolId, poolName }: MatchesSidebarProps) {
           <>
             <div className="flex items-center justify-between gap-2">
               <div className="flex flex-1 flex-col items-center gap-1">
-                <Image
-                  src={nextMatch.homeTeam.flagUrl}
-                  alt={nextMatch.homeTeam.name}
-                  width={36}
-                  height={24}
-                  className="rounded-sm object-cover"
-                />
-                <span className="text-xs font-semibold">{nextMatch.homeTeam.code}</span>
+                {nextMatch.homeTeam ? (
+                  <Image src={nextMatch.homeTeam.flagUrl} alt={nextMatch.homeTeam.name} width={36} height={24} className="rounded-sm object-cover" />
+                ) : (
+                  <div className="h-6 w-9 rounded-sm bg-muted" />
+                )}
+                <span className="text-xs font-semibold">{nextMatch.homeTeam?.code ?? '?'}</span>
               </div>
               <span className="text-xs font-bold text-muted-foreground">vs</span>
               <div className="flex flex-1 flex-col items-center gap-1">
-                <Image
-                  src={nextMatch.awayTeam.flagUrl}
-                  alt={nextMatch.awayTeam.name}
-                  width={36}
-                  height={24}
-                  className="rounded-sm object-cover"
-                />
-                <span className="text-xs font-semibold">{nextMatch.awayTeam.code}</span>
+                {nextMatch.awayTeam ? (
+                  <Image src={nextMatch.awayTeam.flagUrl} alt={nextMatch.awayTeam.name} width={36} height={24} className="rounded-sm object-cover" />
+                ) : (
+                  <div className="h-6 w-9 rounded-sm bg-muted" />
+                )}
+                <span className="text-xs font-semibold">{nextMatch.awayTeam?.code ?? '?'}</span>
               </div>
             </div>
             <p className="mt-2 text-center text-xs text-muted-foreground">

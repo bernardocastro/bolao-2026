@@ -110,10 +110,13 @@ model Match {
   kickoffAt   DateTime // sempre UTC
   venue       String?
   status      MatchStatus @default(SCHEDULED)
-  homeTeamId  String
-  awayTeamId  String
-  homeTeam    Team        @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  awayTeam    Team        @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  homeTeamId       String?
+  awayTeamId       String?
+  homeTeam         Team?       @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam         Team?       @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  // placeholder label when team is TBD (e.g. "2J", "3RD", "RD32")
+  homePlaceholder  String?
+  awayPlaceholder  String?
   homeScore   Int?
   awayScore   Int?
   // mata-mata: vencedor nos pênaltis quando empate

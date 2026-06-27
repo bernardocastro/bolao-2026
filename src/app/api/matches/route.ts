@@ -8,6 +8,13 @@ export const GET = withErrorHandling(async (req: Request) => {
   const url = new URL(req.url);
   const stage = url.searchParams.get('stage') as MatchStage | null;
   const round = url.searchParams.get('round');
+  const knockout = url.searchParams.get('knockout') === 'true';
+
+  if (knockout) {
+    const matches = await matchService.knockout();
+    return json({ matches });
+  }
+
   const matches = await matchService.list({
     ...(stage ? { stage } : {}),
     ...(round ? { round: Number(round) } : {}),

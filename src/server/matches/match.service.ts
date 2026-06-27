@@ -11,15 +11,27 @@ export type MatchWithTeams = Prisma.MatchGetPayload<{ include: typeof matchInclu
 
 export const matchService = {
   /** Lista partidas com cache Redis de 60s. */
-  async list(filters?: { stage?: MatchStage; round?: number; groupName?: string }) {
-    const key = `matches:${filters?.stage ?? 'all'}:${filters?.round ?? 'all'}:${filters?.groupName ?? 'all'}`;
+  async list(filters?: { stage?: MatchStage; round?: number; groupName?: string; excludeStage?: MatchStage }) {
+    const key = `matches:${filters?.stage ?? 'all'}:${filters?.round ?? 'all'}:${filters?.groupName ?? 'all'}:${filters?.excludeStage ?? 'none'}`;
     return cached(key, 60, () =>
       prisma.match.findMany({
         where: {
           ...(filters?.stage ? { stage: filters.stage } : {}),
+          ...(filters?.excludeStage ? { stage: { not: filters.excludeStage } } : {}),
           ...(filters?.round ? { round: filters.round } : {}),
           ...(filters?.groupName ? { groupName: filters.groupName } : {}),
         },
+        include: matchInclude,
+        orderBy: { kickoffAt: 'asc' },
+      }),
+    );
+  },
+
+  /** Lista todas as partidas do mata-mata agrupadas por fase. */
+  async knockout() {
+    return cached('matches:knockout', 60, () =>
+      prisma.match.findMany({
+        where: { stage: { not: 'GROUP' } },
         include: matchInclude,
         orderBy: { kickoffAt: 'asc' },
       }),

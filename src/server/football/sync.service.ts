@@ -80,8 +80,24 @@ export const syncService = {
           continue;
         }
 
+        // 1b) resolve TBD teams: when ESPN now knows the real teams for a knockout slot
+        if (match.homeTeamId === null && homeId) {
+          match = await prisma.match.update({
+            where: { id: match.id },
+            data: { homeTeamId: homeId, homePlaceholder: null },
+          });
+          await invalidateMatchCaches();
+        }
+        if (match.awayTeamId === null && awayId) {
+          match = await prisma.match.update({
+            where: { id: match.id },
+            data: { awayTeamId: awayId, awayPlaceholder: null },
+          });
+          await invalidateMatchCaches();
+        }
+
         // provider pode listar mandante invertido em relação ao nosso banco
-        const swapped = homeId !== undefined && match.homeTeamId !== homeId;
+        const swapped = homeId !== undefined && match.homeTeamId !== null && match.homeTeamId !== homeId;
         const homeScore = swapped ? fixture.awayScore : fixture.homeScore;
         const awayScore = swapped ? fixture.homeScore : fixture.awayScore;
         const oddsHome = swapped ? fixture.oddsAway : fixture.oddsHome;

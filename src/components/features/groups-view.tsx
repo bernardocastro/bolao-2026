@@ -44,7 +44,7 @@ export function GroupsView() {
 
   const { data: groupMatches } = useQuery({
     queryKey: ['matches', 'all'],
-    queryFn: () => api<{ matches: MatchDTO[] }>('/api/matches'),
+    queryFn: () => api<{ matches: MatchDTO[] }>('/api/matches?stage=GROUP'),
     select: (d) =>
       d.matches
         .filter((m) => m.groupName !== null)
@@ -146,11 +146,11 @@ export function GroupsView() {
                   <div key={m.id} className="flex items-center gap-1 text-xs">
                     <div className="flex min-w-0 flex-1 items-center justify-end gap-1">
                       <span className={m.status === 'FINISHED' ? 'font-semibold text-foreground' : 'text-muted-foreground'}>
-                        {m.homeTeam.code}
+                        {m.homeTeam!.code}
                       </span>
                       <Image
-                        src={m.homeTeam.flagUrl}
-                        alt={m.homeTeam.code}
+                        src={m.homeTeam!.flagUrl}
+                        alt={m.homeTeam!.code}
                         width={14}
                         height={10}
                         className="shrink-0 rounded-sm object-cover"
@@ -178,14 +178,14 @@ export function GroupsView() {
 
                     <div className="flex min-w-0 flex-1 items-center gap-1">
                       <Image
-                        src={m.awayTeam.flagUrl}
-                        alt={m.awayTeam.code}
+                        src={m.awayTeam!.flagUrl}
+                        alt={m.awayTeam!.code}
                         width={14}
                         height={10}
                         className="shrink-0 rounded-sm object-cover"
                       />
                       <span className={m.status === 'FINISHED' ? 'font-semibold text-foreground' : 'text-muted-foreground'}>
-                        {m.awayTeam.code}
+                        {m.awayTeam!.code}
                       </span>
                     </div>
                   </div>

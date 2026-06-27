@@ -2,11 +2,12 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ListChecks, Layers } from 'lucide-react';
+import { ListChecks, Layers, Trophy } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { MatchCard, type MatchDTO, type BetDTO } from '@/components/features/match-card';
 import { MatchesSidebar } from '@/components/features/matches-sidebar';
 import { GroupsView } from '@/components/features/groups-view';
+import { KnockoutView } from '@/components/features/knockout-view';
 import { TopScorerCard } from '@/components/features/top-scorer-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -62,7 +63,7 @@ function filterMatches(matches: MatchDTO[], filter: FilterKey): MatchDTO[] {
       });
     case 'bra':
       return matches.filter(
-        (m) => m.homeTeam.code === 'BRA' || m.awayTeam.code === 'BRA',
+        (m) => m.homeTeam?.code === 'BRA' || m.awayTeam?.code === 'BRA',
       );
     case 'live':
       return matches.filter((m) => m.status === 'LIVE');
@@ -80,7 +81,7 @@ function filterMatches(matches: MatchDTO[], filter: FilterKey): MatchDTO[] {
 export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
   const [poolId, setPoolId] = useState(pools[0]?.id);
   const [filter, setFilter] = useState<FilterKey>('upcoming');
-  const [view, setView] = useState<'palpites' | 'grupos'>('palpites');
+  const [view, setView] = useState<'palpites' | 'grupos' | 'mata-mata'>('palpites');
   const [replicateToAll, setReplicateToAll] = useState(
     () => typeof window === 'undefined' || localStorage.getItem('bolao:replicate-bets') !== 'false',
   );
@@ -100,7 +101,7 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
 
   const { data: allMatches, isLoading } = useQuery({
     queryKey: ['matches', 'all'],
-    queryFn: () => api<{ matches: MatchDTO[] }>('/api/matches'),
+    queryFn: () => api<{ matches: MatchDTO[] }>('/api/matches?stage=GROUP'),
     select: (d) => d.matches,
   });
 
@@ -190,30 +191,29 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
 
         {/* View toggle */}
         <div className="flex overflow-hidden rounded-lg border border-border">
-          <button
-            onClick={() => setView('palpites')}
-            className={cn(
-              'flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors',
-              view === 'palpites'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-accent',
-            )}
-          >
-            <ListChecks className="h-4 w-4" />
-            Palpites
-          </button>
-          <button
-            onClick={() => setView('grupos')}
-            className={cn(
-              'flex flex-1 items-center justify-center gap-1.5 border-l border-border py-2 text-sm font-medium transition-colors',
-              view === 'grupos'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-accent',
-            )}
-          >
-            <Layers className="h-4 w-4" />
-            Grupos
-          </button>
+          {(
+            [
+              { key: 'palpites', label: 'Palpites', icon: ListChecks },
+              { key: 'grupos', label: 'Grupos', icon: Layers },
+              { key: 'mata-mata', label: 'Mata-mata', icon: Trophy },
+            ] as const
+          ).map(({ key, label, icon: Icon }, idx) => (
+            <button
+              key={key}
+              onClick={() => setView(key)}
+              className={cn(
+                'flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors',
+                idx > 0 && 'border-l border-border',
+                view === key
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-accent',
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              <span className="hidden sm:inline">{label}</span>
+              <span className="sm:hidden">{label.split('-')[0]}</span>
+            </button>
+          ))}
         </div>
 
         {view === 'palpites' ? (
@@ -289,8 +289,10 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
               </div>
             )}
           </>
-        ) : (
+        ) : view === 'grupos' ? (
           <GroupsView />
+        ) : (
+          <KnockoutView poolId={poolId} />
         )}
       </div>
 

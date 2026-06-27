@@ -14,6 +14,13 @@ import { formatKickoff, initials, cn } from '@/lib/utils';
 
 const DEBOUNCE_MS = 800;
 
+export interface TeamDTO {
+  id: string;
+  name: string;
+  code: string;
+  flagUrl: string;
+}
+
 export interface MatchDTO {
   id: string;
   stage: string;
@@ -24,8 +31,10 @@ export interface MatchDTO {
   status: 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'POSTPONED';
   homeScore: number | null;
   awayScore: number | null;
-  homeTeam: { id: string; name: string; code: string; flagUrl: string };
-  awayTeam: { id: string; name: string; code: string; flagUrl: string };
+  homeTeam: TeamDTO | null;
+  awayTeam: TeamDTO | null;
+  homePlaceholder: string | null;
+  awayPlaceholder: string | null;
   oddsHome: number | null;
   oddsDraw: number | null;
   oddsAway: number | null;
@@ -48,6 +57,18 @@ function toPcts(home: number, draw: number, away: number): [number, number, numb
 }
 
 const AZARAO_THRESHOLD = 150; // moneyline >= +150 = azarão
+
+const STAGE_LABELS: Record<string, string> = {
+  ROUND_OF_32: 'Oitavas de final',
+  ROUND_OF_16: 'Quartas de final',
+  QUARTER_FINAL: 'Semifinal',
+  SEMI_FINAL: 'Semifinal',
+  THIRD_PLACE: '3º lugar',
+  FINAL: 'Final',
+};
+function stageLabel(stage: string): string {
+  return STAGE_LABELS[stage] ?? stage;
+}
 
 export interface BetDTO {
   matchId: string;
@@ -226,6 +247,34 @@ function ScoreInput({
 
 type SaveStatus = 'idle' | 'saving' | 'saved';
 
+function placeholderToLabel(code: string | null | undefined): string {
+  if (!code) return 'A definir';
+  const pos = code[0];
+  const group = code.slice(1);
+  if (pos === '1' && group) return `1º Gr. ${group}`;
+  if (pos === '2' && group) return `2º Gr. ${group}`;
+  if (code === '3RD') return '3º melhor';
+  if (code.startsWith('RD')) return 'A definir';
+  return code;
+}
+
+function TeamLabel({ team, placeholder, side }: { team: { name: string; code: string; flagUrl: string } | null; placeholder?: string | null; side: 'home' | 'away' }) {
+  const label = team ? undefined : placeholderToLabel(placeholder);
+  return (
+    <div className={cn('flex items-center gap-2', side === 'home' ? 'flex-row-reverse' : 'flex-row')}>
+      {team ? (
+        <Image src={team.flagUrl} alt={team.name} width={32} height={22} className="shrink-0 rounded-sm object-cover" />
+      ) : (
+        <div className="h-[22px] w-8 shrink-0 rounded-sm bg-muted" />
+      )}
+      <div className={cn('flex flex-col gap-0.5', side === 'home' ? 'items-end text-right' : 'items-start')}>
+        <span className="hidden text-sm font-semibold sm:block">{team?.name ?? label}</span>
+        <span className="text-sm font-semibold sm:hidden">{team?.code ?? '???'}</span>
+      </div>
+    </div>
+  );
+}
+
 export function MatchCard({ match, bet, poolId, currentUserId, replicateToAll, allPoolIds }: MatchCardProps) {
   const queryClient = useQueryClient();
   const [home, setHome] = useState(bet ? String(bet.homeScore) : '');
@@ -297,7 +346,11 @@ export function MatchCard({ match, bet, poolId, currentUserId, replicateToAll, a
     >
       <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
         <span>
-          {match.groupName ? `Grupo ${match.groupName} · ` : ''}
+          {match.groupName
+            ? `Grupo ${match.groupName} · `
+            : match.stage !== 'GROUP'
+              ? `${stageLabel(match.stage)} · `
+              : ''}
           {formatKickoff(match.kickoffAt)}
         </span>
         {match.status === 'LIVE' && <Badge variant="live">● AO VIVO</Badge>}
@@ -311,23 +364,13 @@ export function MatchCard({ match, bet, poolId, currentUserId, replicateToAll, a
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex flex-1 flex-col items-end gap-1">
-          <div className="flex items-center justify-end gap-2">
-            <div className="flex flex-col items-end gap-0.5 text-right">
-              <span className="hidden text-sm font-semibold sm:block">{match.homeTeam.name}</span>
-              <span className="text-sm font-semibold sm:hidden">{match.homeTeam.code}</span>
-              {match.oddsHome !== null && match.oddsHome >= AZARAO_THRESHOLD && (
-                <Badge variant="outline" className="w-fit max-w-[4rem] border-amber-500/50 px-1.5 py-0 text-[10px] text-amber-500">
-                  Azarão
-                </Badge>
-              )}
-            </div>
-            <Image
-              src={match.homeTeam.flagUrl}
-              alt={match.homeTeam.name}
-              width={32}
-              height={22}
-              className="rounded-sm object-cover"
-            />
+          <div className="flex items-center justify-end gap-1">
+            <TeamLabel team={match.homeTeam} placeholder={match.homePlaceholder} side="home" />
+            {match.oddsHome !== null && match.oddsHome >= AZARAO_THRESHOLD && (
+              <Badge variant="outline" className="w-fit max-w-[4rem] border-amber-500/50 px-1.5 py-0 text-[10px] text-amber-500">
+                Azarão
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -338,7 +381,7 @@ export function MatchCard({ match, bet, poolId, currentUserId, replicateToAll, a
               <span className="text-muted-foreground">:</span>
               <span>{match.awayScore ?? '-'}</span>
             </div>
-          ) : poolId ? (
+          ) : poolId && match.homeTeam && match.awayTeam ? (
             <>
               <ScoreInput value={home} onChange={setHome} disabled={locked} label="Gols do mandante" />
               <span className="text-muted-foreground">×</span>
@@ -350,28 +393,18 @@ export function MatchCard({ match, bet, poolId, currentUserId, replicateToAll, a
         </div>
 
         <div className="flex flex-1 flex-col items-start gap-1">
-          <div className="flex items-center gap-2">
-            <Image
-              src={match.awayTeam.flagUrl}
-              alt={match.awayTeam.name}
-              width={32}
-              height={22}
-              className="rounded-sm object-cover"
-            />
-            <div className="flex flex-col gap-0.5">
-              <span className="hidden text-sm font-semibold sm:block">{match.awayTeam.name}</span>
-              <span className="text-sm font-semibold sm:hidden">{match.awayTeam.code}</span>
-              {match.oddsAway !== null && match.oddsAway >= AZARAO_THRESHOLD && (
-                <Badge variant="outline" className="w-fit max-w-[4rem] border-amber-500/50 px-1.5 py-0 text-[10px] text-amber-500">
-                  Azarão
-                </Badge>
-              )}
-            </div>
+          <div className="flex items-center gap-1">
+            <TeamLabel team={match.awayTeam} placeholder={match.awayPlaceholder} side="away" />
+            {match.oddsAway !== null && match.oddsAway >= AZARAO_THRESHOLD && (
+              <Badge variant="outline" className="w-fit max-w-[4rem] border-amber-500/50 px-1.5 py-0 text-[10px] text-amber-500">
+                Azarão
+              </Badge>
+            )}
           </div>
         </div>
       </div>
 
-      {match.status === 'SCHEDULED' && match.oddsHome !== null && match.oddsDraw !== null && match.oddsAway !== null && (() => {
+      {match.status === 'SCHEDULED' && match.homeTeam && match.awayTeam && match.oddsHome !== null && match.oddsDraw !== null && match.oddsAway !== null && (() => {
         const [pH, pD, pA] = toPcts(match.oddsHome, match.oddsDraw, match.oddsAway);
         return (
           <div className="mt-3 space-y-1.5">

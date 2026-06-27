@@ -78,7 +78,7 @@ async function main() {
   console.log(`\nRecent matches (${matches.length}):`);
   matches.forEach((m) =>
     console.log(
-      `  [${m.id}] ${m.homeTeam.name} vs ${m.awayTeam.name}  status=${m.status}  scored=${!!m.scoredAt}  result=${m.homeScore ?? '?'}-${m.awayScore ?? '?'}`,
+      `  [${m.id}] ${m.homeTeam!.name} vs ${m.awayTeam!.name}  status=${m.status}  scored=${!!m.scoredAt}  result=${m.homeScore ?? '?'}-${m.awayScore ?? '?'}`,
     ),
   );
 
@@ -137,7 +137,7 @@ async function main() {
 
         repairs.push({
           matchId: match.id,
-          matchLabel: `${match.homeTeam.name} vs ${match.awayTeam.name}`,
+          matchLabel: `${match.homeTeam!.name} vs ${match.awayTeam!.name}`,
           matchStatus: match.status,
           userId,
           userName: firstBet.user.name,

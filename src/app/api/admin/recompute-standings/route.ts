@@ -57,7 +57,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   };
 
   for (const m of matches) {
-    if (!m.groupName || m.homeScore === null || m.awayScore === null) continue;
+    if (!m.groupName || m.homeScore === null || m.awayScore === null || !m.homeTeamId || !m.awayTeamId) continue;
     apply(m.homeTeamId, m.groupName, m.homeScore, m.awayScore);
     apply(m.awayTeamId, m.groupName, m.awayScore, m.homeScore);
   }

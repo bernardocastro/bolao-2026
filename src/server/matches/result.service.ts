@@ -47,7 +47,7 @@ export const resultService = {
       where: { id: matchId },
       include: { homeTeam: true, awayTeam: true },
     });
-    const scoreLabel = `${match.homeTeam.name} ${homeScore} x ${awayScore} ${match.awayTeam.name}`;
+    const scoreLabel = `${match.homeTeam?.name ?? '???'} ${homeScore} x ${awayScore} ${match.awayTeam?.name ?? '???'}`;
 
     // Fetch ALL bets per pool (any status) so uniqueness is computed correctly
     // even if some bets were already scored in a prior partial run.
@@ -146,7 +146,7 @@ export const resultService = {
 
   async updateStandings(matchId: string, homeScore: number, awayScore: number): Promise<void> {
     const match = await prisma.match.findUniqueOrThrow({ where: { id: matchId } });
-    if (match.stage !== 'GROUP' || !match.groupName) return;
+    if (match.stage !== 'GROUP' || !match.groupName || !match.homeTeamId || !match.awayTeamId) return;
 
     const apply = async (teamId: string, gf: number, ga: number) => {
       await prisma.standing.upsert({

@@ -55,8 +55,8 @@ export function AdminMatches({ matches }: { matches: MatchDTO[] }) {
             </span>
             <div className="flex flex-1 items-center justify-center gap-2 text-sm font-semibold">
               <span className="flex items-center gap-1.5">
-                <Image src={match.homeTeam.flagUrl} alt="" width={24} height={16} className="rounded-sm" />
-                {match.homeTeam.code}
+                <Image src={match.homeTeam?.flagUrl ?? ""} alt="" width={24} height={16} className="rounded-sm" />
+                {match.homeTeam?.code ?? "?"}
               </span>
               {finished ? (
                 <Badge variant="secondary">
@@ -80,8 +80,8 @@ export function AdminMatches({ matches }: { matches: MatchDTO[] }) {
                 </span>
               )}
               <span className="flex items-center gap-1.5">
-                {match.awayTeam.code}
-                <Image src={match.awayTeam.flagUrl} alt="" width={24} height={16} className="rounded-sm" />
+                {match.awayTeam?.code ?? "?"}
+                <Image src={match.awayTeam?.flagUrl ?? ""} alt="" width={24} height={16} className="rounded-sm" />
               </span>
             </div>
             {!finished && (
