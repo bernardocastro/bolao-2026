@@ -29,7 +29,7 @@ function stageForDate(dateStr: string): MatchStage {
 }
 
 /** Translate ESPN placeholder codes to readable labels */
-export function placeholderLabel(code: string): string {
+function placeholderLabel(code: string): string {
   if (!code || code.length <= 1) return 'A definir';
   const pos = code[0];
   const group = code.slice(1);
