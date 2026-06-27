@@ -18,7 +18,7 @@ interface MatchesViewProps {
   currentUserId: string;
 }
 
-type FilterKey = 'upcoming' | 'all' | 'today' | 'tomorrow' | 'week' | 'bra' | 'live' | 'finished' | `group:${string}`;
+type FilterKey = 'upcoming' | 'all' | 'today' | 'tomorrow' | 'week' | 'bra' | 'live' | 'finished' | 'knockout' | `group:${string}`;
 
 const BASE_FILTERS: { value: FilterKey; label: string }[] = [
   { value: 'upcoming', label: 'Próximos jogos' },
@@ -29,6 +29,7 @@ const BASE_FILTERS: { value: FilterKey; label: string }[] = [
   { value: 'bra', label: '🇧🇷 Brasil' },
   { value: 'live', label: '● Ao vivo' },
   { value: 'finished', label: 'Encerrados' },
+  { value: 'knockout', label: '🏆 Mata-mata' },
 ];
 
 function sameDay(a: Date, b: Date): boolean {
@@ -69,6 +70,10 @@ function filterMatches(matches: MatchDTO[], filter: FilterKey): MatchDTO[] {
       return matches.filter((m) => m.status === 'LIVE');
     case 'finished':
       return matches.filter((m) => m.status === 'FINISHED');
+    case 'knockout':
+      return matches.filter(
+        (m) => m.stage !== 'GROUP' && m.homeTeam !== null && m.awayTeam !== null,
+      );
     default:
       if (filter.startsWith('group:')) {
         const groupName = filter.slice(6);
@@ -101,7 +106,7 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
 
   const { data: allMatches, isLoading } = useQuery({
     queryKey: ['matches', 'all'],
-    queryFn: () => api<{ matches: MatchDTO[] }>('/api/matches?stage=GROUP'),
+    queryFn: () => api<{ matches: MatchDTO[] }>('/api/matches'),
     select: (d) => d.matches,
   });
 
