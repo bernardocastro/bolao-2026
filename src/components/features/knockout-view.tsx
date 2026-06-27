@@ -1,164 +1,263 @@
 'use client';
 
+import { Fragment } from 'react';
 import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
-import { Trophy } from 'lucide-react';
+import { Loader2, Trophy } from 'lucide-react';
 import { api } from '@/lib/api-client';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { formatKickoff, cn } from '@/lib/utils';
-import type { MatchDTO, BetDTO } from '@/components/features/match-card';
+import { cn } from '@/lib/utils';
+import type { MatchDTO } from '@/components/features/match-card';
 
-const STAGE_ORDER = [
-  'ROUND_OF_32',
-  'ROUND_OF_16',
-  'QUARTER_FINAL',
-  'SEMI_FINAL',
-  'THIRD_PLACE',
-  'FINAL',
-];
+// ─── Layout constants ─────────────────────────────────────────────────────────
+const SLOT_H = 56;   // px — height of one match slot
+const COL_W  = 148;  // px — width of one round column
+const CONN_W = 40;   // px — width of the SVG connector between columns
 
-const STAGE_LABELS: Record<string, string> = {
-  ROUND_OF_32: '16 avos de final',
-  ROUND_OF_16: 'Oitavas de final',
-  QUARTER_FINAL: 'Quartas de final',
-  SEMI_FINAL: 'Semifinal',
-  THIRD_PLACE: '3º lugar',
-  FINAL: 'Final',
-};
+// Knockout rounds in bracket order (THIRD_PLACE is rendered separately below)
+const BRACKET_STAGES = [
+  { key: 'ROUND_OF_32',   label: '16 avos',  count: 16 },
+  { key: 'ROUND_OF_16',   label: 'Oitavas',  count: 8  },
+  { key: 'QUARTER_FINAL', label: 'Quartas',  count: 4  },
+  { key: 'SEMI_FINAL',    label: 'Semi',     count: 2  },
+  { key: 'FINAL',         label: 'Final',    count: 1  },
+] as const;
 
+// ─── Geometry helpers ─────────────────────────────────────────────────────────
+// roundIdx = index into the *displayed* stages array (0 = first visible round)
+// slotIdx  = 0-based position within that round
+
+function slotTop(roundIdx: number, slotIdx: number): number {
+  const spread = 1 << roundIdx; // 2^roundIdx base-slots per match
+  return (spread * slotIdx + (spread - 1) / 2) * SLOT_H;
+}
+
+function slotCenterY(roundIdx: number, slotIdx: number): number {
+  return slotTop(roundIdx, slotIdx) + SLOT_H / 2;
+}
+
+// ─── Placeholder labels ───────────────────────────────────────────────────────
 function placeholderLabel(code: string | null | undefined): string {
-  if (!code) return 'A definir';
-  const pos = code[0];
-  const group = code.slice(1);
-  if (pos === '1' && group) return `1º Gr. ${group}`;
-  if (pos === '2' && group) return `2º Gr. ${group}`;
+  if (!code) return '?';
   if (code === '3RD') return '3º melhor';
-  if (code.startsWith('RD') || code.startsWith('QF') || code.startsWith('SF')) return 'A definir';
-  return code;
+  const pos = code[0];
+  const rest = code.slice(1);
+  if ((pos === '1' || pos === '2') && rest) return `${pos}º Gr.${rest}`;
+  return '?';
 }
 
-interface KnockoutMatchCardProps {
-  match: MatchDTO;
-  bet?: BetDTO;
-}
+// ─── One team row inside a match card ────────────────────────────────────────
+const ROW_H = Math.floor((SLOT_H - 5) / 2); // ~25 px
 
-function KnockoutMatchCard({ match, bet }: KnockoutMatchCardProps) {
-  const isFinished = match.status === 'FINISHED';
-  const isLive = match.status === 'LIVE';
-  const hasBet = Boolean(bet);
-
-  const homeTeam = match.homeTeam;
-  const awayTeam = match.awayTeam;
-
-  function TeamRow({
-    team,
-    placeholder,
-    score,
-    isWinner,
-  }: {
-    team: MatchDTO['homeTeam'];
-    placeholder?: string | null;
-    score: number | null;
-    isWinner: boolean;
-  }) {
-    return (
-      <div className={cn('flex items-center gap-2 px-3 py-2', isFinished && isWinner && 'bg-primary/8')}>
-        {team ? (
-          <Image
-            src={team.flagUrl}
-            alt={team.code}
-            width={20}
-            height={14}
-            className="shrink-0 rounded-sm object-cover"
-          />
-        ) : (
-          <div className="h-3.5 w-5 shrink-0 rounded-sm bg-muted" />
+function TeamRow({
+  team,
+  placeholder,
+  score,
+  won,
+  active,
+}: {
+  team: MatchDTO['homeTeam'];
+  placeholder?: string | null;
+  score: number | null;
+  won: boolean;
+  active: boolean;
+}) {
+  return (
+    <div
+      className={cn('flex min-w-0 items-center gap-1.5 px-2', won && 'bg-primary/10')}
+      style={{ height: ROW_H }}
+    >
+      {team ? (
+        <Image
+          src={team.flagUrl}
+          alt={team.code}
+          width={16}
+          height={11}
+          className="shrink-0 rounded-sm object-cover"
+        />
+      ) : (
+        <div className="h-[11px] w-4 shrink-0 rounded-sm bg-muted/50" />
+      )}
+      <span
+        className={cn(
+          'flex-1 truncate text-[11px]',
+          won
+            ? 'font-bold text-foreground'
+            : team
+            ? 'text-foreground/85'
+            : 'text-muted-foreground/40',
         )}
+      >
+        {team?.code ?? placeholderLabel(placeholder)}
+      </span>
+      {active && (
         <span
           className={cn(
-            'flex-1 truncate text-sm',
-            isFinished && isWinner ? 'font-bold text-foreground' : 'text-muted-foreground',
-            !isFinished && team && 'text-foreground font-medium',
+            'shrink-0 text-[11px] font-black tabular-nums',
+            won && 'text-primary',
           )}
         >
-          {team ? team.code : placeholderLabel(placeholder)}
+          {score ?? '–'}
         </span>
-        {(isLive || isFinished) && (
-          <span className={cn('shrink-0 text-sm font-black tabular-nums', isFinished && isWinner && 'text-primary')}>
-            {score ?? '-'}
-          </span>
-        )}
-      </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Single match card, absolutely positioned inside its column ───────────────
+function BracketMatch({
+  match,
+  roundIdx,
+  slotIdx,
+}: {
+  match?: MatchDTO;
+  roundIdx: number;
+  slotIdx: number;
+}) {
+  const top = slotTop(roundIdx, slotIdx);
+  const h   = SLOT_H - 4;
+
+  if (!match) {
+    return (
+      <div
+        className="absolute rounded border border-dashed border-border/20"
+        style={{ top: top + 2, left: 0, width: COL_W, height: h }}
+      />
     );
   }
 
-  const homeWins =
-    isFinished &&
-    match.homeScore !== null &&
-    match.awayScore !== null &&
-    match.homeScore > match.awayScore;
-  const awayWins =
-    isFinished &&
-    match.homeScore !== null &&
-    match.awayScore !== null &&
-    match.awayScore > match.homeScore;
+  const fin    = match.status === 'FINISHED';
+  const live   = match.status === 'LIVE';
+  const active = fin || live;
+  const hw     = fin && match.homeScore !== null && match.awayScore !== null && match.homeScore > match.awayScore;
+  const aw     = fin && match.homeScore !== null && match.awayScore !== null && match.awayScore > match.homeScore;
 
   return (
-    <div className={cn('overflow-hidden rounded-lg border', isLive ? 'border-primary/50' : 'border-border')}>
-      {/* Date + status */}
-      <div className="flex items-center justify-between border-b border-border/60 bg-muted/40 px-3 py-1.5">
-        <span className="text-[11px] text-muted-foreground">{formatKickoff(match.kickoffAt)}</span>
-        <div className="flex items-center gap-1.5">
-          {hasBet && (
-            <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
-              Palpite: {bet!.homeScore}×{bet!.awayScore}
-              {bet!.status === 'SCORED' && bet!.pointsEarned > 0 && ` · +${bet!.pointsEarned}pts`}
-            </Badge>
-          )}
-          {isLive && <Badge variant="live" className="px-1.5 py-0 text-[10px]">● AO VIVO</Badge>}
-          {isFinished && <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">Encerrado</Badge>}
-        </div>
-      </div>
+    <div
+      className={cn(
+        'absolute overflow-hidden rounded border bg-card',
+        live ? 'border-primary/60' : 'border-border',
+      )}
+      style={{ top: top + 2, left: 0, width: COL_W, height: h }}
+    >
+      <TeamRow
+        team={match.homeTeam}
+        placeholder={match.homePlaceholder}
+        score={match.homeScore}
+        won={hw}
+        active={active}
+      />
+      <div className="border-t border-border/40" />
+      <TeamRow
+        team={match.awayTeam}
+        placeholder={match.awayPlaceholder}
+        score={match.awayScore}
+        won={aw}
+        active={active}
+      />
+      {live && (
+        <div className="absolute right-1.5 top-1 h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+      )}
+    </div>
+  );
+}
 
-      {/* Teams */}
-      <div className="divide-y divide-border/60">
-        <TeamRow team={homeTeam} placeholder={match.homePlaceholder} score={match.homeScore} isWinner={homeWins} />
-        <TeamRow team={awayTeam} placeholder={match.awayPlaceholder} score={match.awayScore} isWinner={awayWins} />
+// ─── SVG bracket connector between two consecutive rounds ─────────────────────
+function Connector({
+  fromRoundIdx,
+  fromCount,
+  bracketH,
+}: {
+  fromRoundIdx: number;
+  fromCount: number;
+  bracketH: number;
+}) {
+  const pairCount = fromCount >> 1;
+  const midX      = CONN_W / 2;
+
+  return (
+    <svg width={CONN_W} height={bracketH} className="shrink-0">
+      {Array.from({ length: pairCount }, (_, k) => {
+        const y1 = slotCenterY(fromRoundIdx, k * 2);
+        const y2 = slotCenterY(fromRoundIdx, k * 2 + 1);
+        const yn = slotCenterY(fromRoundIdx + 1, k);
+        return (
+          <g key={k}>
+            {/* Bracket arms from the two feeder matches */}
+            <path
+              d={`M 0,${y1} H ${midX} V ${y2} M 0,${y2} H ${midX}`}
+              stroke="hsl(var(--border))"
+              strokeWidth={1.5}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {/* Horizontal lead to the next-round match */}
+            <path
+              d={`M ${midX},${yn} H ${CONN_W}`}
+              stroke="hsl(var(--border))"
+              strokeWidth={1.5}
+              fill="none"
+              strokeLinecap="round"
+            />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ─── Third-place mini card ────────────────────────────────────────────────────
+function ThirdPlaceCard({ match }: { match: MatchDTO }) {
+  const fin    = match.status === 'FINISHED';
+  const live   = match.status === 'LIVE';
+  const active = fin || live;
+  const hw     = fin && match.homeScore !== null && match.awayScore !== null && match.homeScore > match.awayScore;
+  const aw     = fin && match.homeScore !== null && match.awayScore !== null && match.awayScore > match.homeScore;
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/60">
+        3º lugar
+      </p>
+      <div
+        className={cn(
+          'overflow-hidden rounded-lg border bg-card',
+          live ? 'border-primary/60' : 'border-border',
+        )}
+        style={{ width: COL_W + 60 }}
+      >
+        <TeamRow
+          team={match.homeTeam}
+          placeholder={match.homePlaceholder}
+          score={match.homeScore}
+          won={hw}
+          active={active}
+        />
+        <div className="border-t border-border/40" />
+        <TeamRow
+          team={match.awayTeam}
+          placeholder={match.awayPlaceholder}
+          score={match.awayScore}
+          won={aw}
+          active={active}
+        />
       </div>
     </div>
   );
 }
 
-interface KnockoutViewProps {
-  poolId?: string;
-}
-
-export function KnockoutView({ poolId }: KnockoutViewProps) {
+// ─── Main bracket view ────────────────────────────────────────────────────────
+export function KnockoutView({ poolId: _poolId }: { poolId?: string }) {
   const { data: matches, isLoading } = useQuery({
     queryKey: ['matches', 'knockout'],
     queryFn: () => api<{ matches: MatchDTO[] }>('/api/matches?knockout=true'),
     select: (d) => d.matches,
   });
 
-  const { data: bets } = useQuery({
-    queryKey: ['bets', poolId],
-    queryFn: () => api<{ bets: BetDTO[] }>(`/api/bets?poolId=${poolId}`),
-    select: (d) => d.bets,
-    enabled: Boolean(poolId),
-  });
-
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        {[0, 1].map((i) => (
-          <div key={i} className="space-y-2">
-            <Skeleton className="h-6 w-40" />
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {[0, 1, 2, 3].map((j) => <Skeleton key={j} className="h-24 w-full" />)}
-            </div>
-          </div>
-        ))}
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -173,9 +272,7 @@ export function KnockoutView({ poolId }: KnockoutViewProps) {
     );
   }
 
-  const betByMatch = new Map((bets ?? []).map((b) => [b.matchId, b]));
-
-  // Group by stage in correct order
+  // Group by stage
   const byStage = new Map<string, MatchDTO[]>();
   for (const m of matches) {
     const arr = byStage.get(m.stage) ?? [];
@@ -183,45 +280,78 @@ export function KnockoutView({ poolId }: KnockoutViewProps) {
     byStage.set(m.stage, arr);
   }
 
-  const stages = STAGE_ORDER.filter((s) => byStage.has(s));
+  const thirdPlace = byStage.get('THIRD_PLACE')?.[0];
+
+  // Start the bracket from the earliest round present in the data
+  const firstIdx = BRACKET_STAGES.findIndex((s) => byStage.has(s.key));
+  if (firstIdx < 0) return null;
+
+  const stages   = BRACKET_STAGES.slice(firstIdx);
+  const bracketH = stages[0]!.count * SLOT_H;
+  const totalW   = stages.length * COL_W + (stages.length - 1) * CONN_W;
 
   return (
-    <div className="space-y-8">
-      {stages.map((stage) => {
-        const stageMatches = byStage.get(stage)!;
-        const label = STAGE_LABELS[stage] ?? stage;
-        const isDecidingStage = stage === 'FINAL' || stage === 'THIRD_PLACE';
+    <div className="space-y-6">
+      {/* Horizontally scrollable bracket */}
+      <div className="-mx-1 overflow-x-auto pb-3">
+        <div style={{ width: totalW, padding: '0 4px' }}>
 
-        return (
-          <div key={stage}>
-            <div className="mb-3 flex items-center gap-2">
-              {isDecidingStage && <Trophy className="h-4 w-4 text-amber-500" />}
-              <h3 className={cn('font-display text-base font-bold', isDecidingStage && 'text-amber-500')}>
-                {label}
-              </h3>
-              <span className="text-xs text-muted-foreground">
-                ({stageMatches.filter((m) => m.status === 'FINISHED').length}/{stageMatches.length})
-              </span>
-            </div>
-
-            <div className={cn(
-              'grid gap-3',
-              stage === 'ROUND_OF_32' ? 'sm:grid-cols-2 lg:grid-cols-4' :
-              stage === 'ROUND_OF_16' ? 'sm:grid-cols-2 lg:grid-cols-3' :
-              stage === 'QUARTER_FINAL' ? 'sm:grid-cols-2' :
-              'sm:grid-cols-2',
-            )}>
-              {stageMatches.map((match) => (
-                <KnockoutMatchCard
-                  key={match.id}
-                  match={match}
-                  bet={betByMatch.get(match.id)}
-                />
-              ))}
-            </div>
+          {/* Round labels */}
+          <div className="mb-2 flex" style={{ height: 28 }}>
+            {stages.map((stage, idx) => (
+              <Fragment key={stage.key}>
+                {idx > 0 && <div style={{ width: CONN_W }} />}
+                <div className="flex items-center justify-center" style={{ width: COL_W }}>
+                  <span
+                    className={cn(
+                      'text-[10px] font-bold uppercase tracking-widest',
+                      stage.key === 'FINAL'
+                        ? 'text-amber-500'
+                        : 'text-muted-foreground/60',
+                    )}
+                  >
+                    {stage.label}
+                  </span>
+                </div>
+              </Fragment>
+            ))}
           </div>
-        );
-      })}
+
+          {/* Bracket body */}
+          <div className="flex" style={{ height: bracketH }}>
+            {stages.map((stage, stageIdx) => {
+              const stageMatches = byStage.get(stage.key) ?? [];
+              return (
+                <Fragment key={stage.key}>
+                  {stageIdx > 0 && (
+                    <Connector
+                      fromRoundIdx={stageIdx - 1}
+                      fromCount={stages[stageIdx - 1]!.count}
+                      bracketH={bracketH}
+                    />
+                  )}
+                  <div
+                    className="relative shrink-0"
+                    style={{ width: COL_W, height: bracketH }}
+                  >
+                    {Array.from({ length: stage.count }, (_, slotIdx) => (
+                      <BracketMatch
+                        key={slotIdx}
+                        match={stageMatches[slotIdx]}
+                        roundIdx={stageIdx}
+                        slotIdx={slotIdx}
+                      />
+                    ))}
+                  </div>
+                </Fragment>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Third-place match, shown below the bracket */}
+      {thirdPlace && <ThirdPlaceCard match={thirdPlace} />}
     </div>
   );
 }
