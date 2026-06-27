@@ -1,7 +1,7 @@
 import { withErrorHandling, json, ApiError } from '@/lib/api';
 import { getSession } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
-import { invalidate } from '@/lib/redis';
+import { redis } from '@/lib/redis';
 import type { MatchStage } from '@prisma/client';
 
 export const maxDuration = 60;
@@ -156,7 +156,10 @@ export const POST = withErrorHandling(async (req: Request) => {
     }
   }
 
-  await invalidate('matches:all');
+  try {
+    const keys = await redis.keys('matches:*');
+    if (keys.length) await redis.del(...keys);
+  } catch { /* cache expires on its own */ }
 
   return json({ ok: true, created, updated, skipped });
 });

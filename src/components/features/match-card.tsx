@@ -59,9 +59,9 @@ function toPcts(home: number, draw: number, away: number): [number, number, numb
 const AZARAO_THRESHOLD = 150; // moneyline >= +150 = azarão
 
 const STAGE_LABELS: Record<string, string> = {
-  ROUND_OF_32: 'Oitavas de final',
-  ROUND_OF_16: 'Quartas de final',
-  QUARTER_FINAL: 'Semifinal',
+  ROUND_OF_32: '16 avos de final',
+  ROUND_OF_16: 'Oitavas de final',
+  QUARTER_FINAL: 'Quartas de final',
   SEMI_FINAL: 'Semifinal',
   THIRD_PLACE: '3º lugar',
   FINAL: 'Final',
