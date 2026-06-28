@@ -18,14 +18,14 @@ interface MatchesViewProps {
   currentUserId: string;
 }
 
-type FilterKey = 'upcoming' | 'all' | 'today' | 'tomorrow' | 'week' | 'bra' | 'live' | 'finished' | 'knockout' | `group:${string}`;
+type FilterKey = 'upcoming' | 'all' | 'yesterday' | 'today' | 'tomorrow' | 'bra' | 'live' | 'finished' | 'knockout' | `group:${string}`;
 
 const BASE_FILTERS: { value: FilterKey; label: string }[] = [
   { value: 'upcoming', label: 'Próximos jogos' },
   { value: 'all', label: 'Todos' },
+  { value: 'yesterday', label: 'Ontem' },
   { value: 'today', label: 'Hoje' },
   { value: 'tomorrow', label: 'Amanhã' },
-  { value: 'week', label: 'Próx. semana' },
   { value: 'bra', label: '🇧🇷 Brasil' },
   { value: 'live', label: '● Ao vivo' },
   { value: 'finished', label: 'Encerrados' },
@@ -43,25 +43,20 @@ function sameDay(a: Date, b: Date): boolean {
 function filterMatches(matches: MatchDTO[], filter: FilterKey): MatchDTO[] {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
-  const dayAfterTomorrow = new Date(today);
-  dayAfterTomorrow.setDate(today.getDate() + 2);
-  const weekEnd = new Date(today);
-  weekEnd.setDate(today.getDate() + 8);
 
   switch (filter) {
     case 'upcoming':
       return matches.filter((m) => m.status === 'SCHEDULED' || m.status === 'LIVE');
+    case 'yesterday':
+      return matches.filter((m) => sameDay(new Date(m.kickoffAt), yesterday));
     case 'today':
       return matches.filter((m) => sameDay(new Date(m.kickoffAt), today));
     case 'tomorrow':
       return matches.filter((m) => sameDay(new Date(m.kickoffAt), tomorrow));
-    case 'week':
-      return matches.filter((m) => {
-        const d = new Date(m.kickoffAt);
-        return d >= dayAfterTomorrow && d < weekEnd;
-      });
     case 'bra':
       return matches.filter(
         (m) => m.homeTeam?.code === 'BRA' || m.awayTeam?.code === 'BRA',
