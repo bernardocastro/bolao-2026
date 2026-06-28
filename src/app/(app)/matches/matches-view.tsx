@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useMemo, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ListChecks, Layers, Trophy } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { MatchCard, type MatchDTO, type BetDTO } from '@/components/features/match-card';
@@ -91,6 +91,17 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
     () => typeof window === 'undefined' || localStorage.getItem('bolao:replicate-bets') !== 'false',
   );
   const allPoolIds = pools.map((p) => p.id);
+  const queryClient = useQueryClient();
+
+  // Refresh match data whenever the user comes back to the palpites tab.
+  // MatchesView never unmounts between tab switches so refetchOnMount never
+  // fires; without this the cache can serve stale (GROUP-only) data, making
+  // the 'upcoming' filter return 0 results once all group games are finished.
+  useEffect(() => {
+    if (view === 'palpites') {
+      void queryClient.invalidateQueries({ queryKey: ['matches', 'all'] });
+    }
+  }, [view, queryClient]);
 
   function toggleReplicate() {
     setReplicateToAll((v) => {
