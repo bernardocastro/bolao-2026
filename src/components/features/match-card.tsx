@@ -74,6 +74,7 @@ export interface BetDTO {
   matchId: string;
   homeScore: number;
   awayScore: number;
+  advancingTeamId?: string | null;
   pointsEarned: number;
   status: 'PENDING' | 'SCORED';
   isExactScore: boolean;
@@ -279,10 +280,13 @@ export function MatchCard({ match, bet, poolId, currentUserId, replicateToAll, a
   const queryClient = useQueryClient();
   const [home, setHome] = useState(bet ? String(bet.homeScore) : '');
   const [away, setAway] = useState(bet ? String(bet.awayScore) : '');
+  const [advancingTeamId, setAdvancingTeamId] = useState<string | null>(bet?.advancingTeamId ?? null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [showBets, setShowBets] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initializedRef = useRef(Boolean(bet));
+
+  const isKnockout = match.stage !== 'GROUP';
 
   // Sync inputs when bet loads asynchronously after mount
   useEffect(() => {
@@ -290,14 +294,25 @@ export function MatchCard({ match, bet, poolId, currentUserId, replicateToAll, a
       initializedRef.current = true;
       setHome(String(bet.homeScore));
       setAway(String(bet.awayScore));
+      setAdvancingTeamId(bet.advancingTeamId ?? null);
     }
   }, [bet]);
+
+  // Clear advancing team when score is no longer a draw
+  useEffect(() => {
+    if (home !== '' && away !== '' && home !== away) {
+      setAdvancingTeamId(null);
+    }
+  }, [home, away]);
 
   const kickoffPassed = new Date(match.kickoffAt) <= new Date();
   const canReveal = poolId && kickoffPassed && match.status !== 'SCHEDULED' && match.status !== 'POSTPONED';
 
   const locked = match.status !== 'SCHEDULED' || new Date(match.kickoffAt) <= new Date();
-  const dirty = home !== (bet ? String(bet.homeScore) : '') || away !== (bet ? String(bet.awayScore) : '');
+  const dirty =
+    home !== (bet ? String(bet.homeScore) : '') ||
+    away !== (bet ? String(bet.awayScore) : '') ||
+    advancingTeamId !== (bet?.advancingTeamId ?? null);
 
   const targetPoolIds = replicateToAll && allPoolIds?.length ? allPoolIds : poolId ? [poolId] : [];
 
@@ -307,7 +322,13 @@ export function MatchCard({ match, bet, poolId, currentUserId, replicateToAll, a
         targetPoolIds.map((pid) =>
           api('/api/bets', {
             method: 'PUT',
-            json: { poolId: pid, matchId: match.id, homeScore: Number(home), awayScore: Number(away) },
+            json: {
+              poolId: pid,
+              matchId: match.id,
+              homeScore: Number(home),
+              awayScore: Number(away),
+              ...(isKnockout && home === away && advancingTeamId ? { advancingTeamId } : {}),
+            },
           }),
         ),
       ),
@@ -326,6 +347,7 @@ export function MatchCard({ match, bet, poolId, currentUserId, replicateToAll, a
 
   useEffect(() => {
     if (locked || !poolId || !dirty || home === '' || away === '') return;
+    if (isKnockout && home === away && !advancingTeamId) return;
     setSaveStatus('idle');
     timerRef.current = setTimeout(() => {
       setSaveStatus('saving');
@@ -335,7 +357,7 @@ export function MatchCard({ match, bet, poolId, currentUserId, replicateToAll, a
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [home, away]);
+  }, [home, away, advancingTeamId]);
 
   return (
     <motion.div
@@ -394,6 +416,29 @@ export function MatchCard({ match, bet, poolId, currentUserId, replicateToAll, a
         </div>
       </div>
 
+
+      {isKnockout && !locked && match.homeTeam && match.awayTeam && home !== '' && away !== '' && home === away && (
+        <div className="mt-3 space-y-1.5">
+          <p className="text-center text-xs text-muted-foreground">Quem avança em caso de empate?</p>
+          <div className="flex gap-2">
+            {([match.homeTeam, match.awayTeam] as const).map((team) => (
+              <button
+                key={team.id}
+                onClick={() => setAdvancingTeamId(advancingTeamId === team.id ? null : team.id)}
+                className={cn(
+                  'flex flex-1 items-center justify-center gap-1.5 rounded-md border py-2 text-sm font-semibold transition-colors',
+                  advancingTeamId === team.id
+                    ? 'border-primary bg-primary/15 text-primary'
+                    : 'border-border text-muted-foreground hover:bg-accent',
+                )}
+              >
+                <Image src={team.flagUrl} alt={team.code} width={20} height={14} className="rounded-sm object-cover" />
+                {team.code}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {match.status === 'SCHEDULED' && match.homeTeam && match.awayTeam && match.oddsHome !== null && match.oddsDraw !== null && match.oddsAway !== null && (() => {
         const [pH, pD, pA] = toPcts(match.oddsHome, match.oddsDraw, match.oddsAway);
