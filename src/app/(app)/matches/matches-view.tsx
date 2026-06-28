@@ -137,7 +137,8 @@ export function MatchesView({ pools, currentUserId }: MatchesViewProps) {
 
   const betByMatch = new Map((bets ?? []).map((b) => [b.matchId, b]));
   const selectedPool = pools.find((p) => p.id === poolId);
-  const filtered = filterMatches(allMatches ?? [], filter);
+  const filtered = filterMatches(allMatches ?? [], filter)
+    .filter((m) => m.stage === 'GROUP' || (m.homeTeam !== null && m.awayTeam !== null));
 
   return (
     <div className={cn('grid grid-cols-1 gap-6', view !== 'mata-mata' && 'lg:grid-cols-[1fr_280px]')}>

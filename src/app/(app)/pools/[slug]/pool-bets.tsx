@@ -136,7 +136,8 @@ export function PoolBets({ poolId, currentUserId }: PoolBetsProps) {
   }
 
   const betByMatch = new Map((bets ?? []).map((b) => [b.matchId, b]));
-  const filtered = filterMatches(allMatches, filter);
+  const filtered = filterMatches(allMatches, filter)
+    .filter((m) => m.stage === 'GROUP' || (m.homeTeam !== null && m.awayTeam !== null));
 
   return (
     <div className="space-y-4">
