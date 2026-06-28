@@ -1,14 +1,14 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Plus, ArrowRight } from 'lucide-react';
+import { Plus, ArrowRight, Trophy } from 'lucide-react';
 import { getSession } from '@/lib/session';
 import { poolService } from '@/server/pools/pool.service';
 import { matchService } from '@/server/matches/match.service';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Trophy } from 'lucide-react';
 import { MatchCard, type MatchDTO } from '@/components/features/match-card';
+import { KnockoutView } from '@/components/features/knockout-view';
 import { formatPoints } from '@/lib/utils';
 
 export const metadata = { title: 'Início' };
@@ -18,10 +18,15 @@ export default async function DashboardPage() {
   const session = await getSession();
   if (!session) redirect('/login');
 
-  const [pools, upcoming] = await Promise.all([
+  const [pools, upcoming, knockoutMatches] = await Promise.all([
     poolService.listForUser(session.sub),
     matchService.upcoming(3),
+    matchService.knockout(),
   ]);
+
+  const knockoutDTOs = knockoutMatches.length
+    ? (JSON.parse(JSON.stringify(knockoutMatches)) as MatchDTO[])
+    : [];
 
   return (
     <div className="space-y-8">
@@ -77,6 +82,21 @@ export default async function DashboardPage() {
           </div>
         )}
       </section>
+
+      {knockoutDTOs.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
+              <Trophy className="h-4 w-4 text-amber-400" />
+              Chaveamento
+            </h2>
+            <Button variant="link" size="sm" asChild>
+              <Link href="/matches">Ver palpites</Link>
+            </Button>
+          </div>
+          <KnockoutView initialMatches={knockoutDTOs} />
+        </section>
+      )}
 
       <section>
         <div className="mb-3 flex items-center justify-between">

@@ -23,11 +23,8 @@ const BRACKET_STAGES = [
 ] as const;
 
 // ─── Geometry helpers ─────────────────────────────────────────────────────────
-// roundIdx = index into the *displayed* stages array (0 = first visible round)
-// slotIdx  = 0-based position within that round
-
 function slotTop(roundIdx: number, slotIdx: number): number {
-  const spread = 1 << roundIdx; // 2^roundIdx base-slots per match
+  const spread = 1 << roundIdx;
   return (spread * slotIdx + (spread - 1) / 2) * SLOT_H;
 }
 
@@ -46,24 +43,30 @@ function placeholderLabel(code: string | null | undefined): string {
 }
 
 // ─── One team row inside a match card ────────────────────────────────────────
-const ROW_H = Math.floor((SLOT_H - 5) / 2); // ~25 px
+const ROW_H = Math.floor((SLOT_H - 5) / 2);
 
 function TeamRow({
   team,
   placeholder,
   score,
   won,
+  lost,
   active,
 }: {
   team: MatchDTO['homeTeam'];
   placeholder?: string | null;
   score: number | null;
   won: boolean;
+  lost: boolean;
   active: boolean;
 }) {
   return (
     <div
-      className={cn('flex min-w-0 items-center gap-1.5 px-2', won && 'bg-primary/10')}
+      className={cn(
+        'flex min-w-0 items-center gap-1.5 px-2 transition-colors',
+        won && 'bg-emerald-500/15',
+        lost && 'opacity-40',
+      )}
       style={{ height: ROW_H }}
     >
       {team ? (
@@ -81,7 +84,7 @@ function TeamRow({
         className={cn(
           'flex-1 truncate text-[11px]',
           won
-            ? 'font-bold text-foreground'
+            ? 'font-bold text-emerald-400'
             : team
             ? 'text-foreground/85'
             : 'text-muted-foreground/40',
@@ -93,7 +96,7 @@ function TeamRow({
         <span
           className={cn(
             'shrink-0 text-[11px] font-black tabular-nums',
-            won && 'text-primary',
+            won ? 'text-emerald-400' : 'text-muted-foreground',
           )}
         >
           {score ?? '–'}
@@ -108,10 +111,12 @@ function BracketMatch({
   match,
   roundIdx,
   slotIdx,
+  isFinal,
 }: {
   match?: MatchDTO;
   roundIdx: number;
   slotIdx: number;
+  isFinal?: boolean;
 }) {
   const top = slotTop(roundIdx, slotIdx);
   const h   = SLOT_H - 4;
@@ -134,8 +139,12 @@ function BracketMatch({
   return (
     <div
       className={cn(
-        'absolute overflow-hidden rounded border bg-card',
-        live ? 'border-primary/60' : 'border-border',
+        'absolute overflow-hidden rounded border bg-card transition-shadow',
+        live
+          ? 'border-primary/70 shadow-md shadow-primary/20'
+          : isFinal
+          ? 'border-amber-500/50 shadow-sm shadow-amber-500/10'
+          : 'border-border/60',
       )}
       style={{ top: top + 2, left: 0, width: COL_W, height: h }}
     >
@@ -144,14 +153,16 @@ function BracketMatch({
         placeholder={match.homePlaceholder}
         score={match.homeScore}
         won={hw}
+        lost={aw}
         active={active}
       />
-      <div className="border-t border-border/40" />
+      <div className={cn('border-t', isFinal ? 'border-amber-500/20' : 'border-border/40')} />
       <TeamRow
         team={match.awayTeam}
         placeholder={match.awayPlaceholder}
         score={match.awayScore}
         won={aw}
+        lost={hw}
         active={active}
       />
       {live && (
@@ -175,26 +186,24 @@ function Connector({
   const midX      = CONN_W / 2;
 
   return (
-    <svg width={CONN_W} height={bracketH} className="shrink-0">
+    <svg width={CONN_W} height={bracketH} className="shrink-0 text-primary/25">
       {Array.from({ length: pairCount }, (_, k) => {
         const y1 = slotCenterY(fromRoundIdx, k * 2);
         const y2 = slotCenterY(fromRoundIdx, k * 2 + 1);
         const yn = slotCenterY(fromRoundIdx + 1, k);
         return (
           <g key={k}>
-            {/* Bracket arms from the two feeder matches */}
             <path
               d={`M 0,${y1} H ${midX} V ${y2} M 0,${y2} H ${midX}`}
-              stroke="hsl(var(--border))"
+              stroke="currentColor"
               strokeWidth={1.5}
               fill="none"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            {/* Horizontal lead to the next-round match */}
             <path
               d={`M ${midX},${yn} H ${CONN_W}`}
-              stroke="hsl(var(--border))"
+              stroke="currentColor"
               strokeWidth={1.5}
               fill="none"
               strokeLinecap="round"
@@ -222,7 +231,7 @@ function ThirdPlaceCard({ match }: { match: MatchDTO }) {
       <div
         className={cn(
           'overflow-hidden rounded-lg border bg-card',
-          live ? 'border-primary/60' : 'border-border',
+          live ? 'border-primary/60 shadow-md shadow-primary/15' : 'border-border/60',
         )}
         style={{ width: COL_W + 60 }}
       >
@@ -231,6 +240,7 @@ function ThirdPlaceCard({ match }: { match: MatchDTO }) {
           placeholder={match.homePlaceholder}
           score={match.homeScore}
           won={hw}
+          lost={aw}
           active={active}
         />
         <div className="border-t border-border/40" />
@@ -239,6 +249,7 @@ function ThirdPlaceCard({ match }: { match: MatchDTO }) {
           placeholder={match.awayPlaceholder}
           score={match.awayScore}
           won={aw}
+          lost={hw}
           active={active}
         />
       </div>
@@ -247,12 +258,14 @@ function ThirdPlaceCard({ match }: { match: MatchDTO }) {
 }
 
 // ─── Main bracket view ────────────────────────────────────────────────────────
-export function KnockoutView({ poolId: _poolId }: { poolId?: string }) {
-  const { data: matches, isLoading } = useQuery({
+export function KnockoutView({ poolId: _poolId, initialMatches }: { poolId?: string; initialMatches?: MatchDTO[] }) {
+  const { data, isLoading } = useQuery({
     queryKey: ['matches', 'knockout'],
     queryFn: () => api<{ matches: MatchDTO[] }>('/api/matches?knockout=true'),
-    select: (d) => d.matches,
+    ...(initialMatches ? { initialData: { matches: initialMatches } } : {}),
   });
+
+  const matches = data?.matches;
 
   if (isLoading) {
     return (
@@ -291,61 +304,65 @@ export function KnockoutView({ poolId: _poolId }: { poolId?: string }) {
   const totalW   = stages.length * COL_W + (stages.length - 1) * CONN_W;
 
   return (
-    <div className="space-y-6">
-      {/* Horizontally scrollable bracket */}
-      <div className="-mx-1 overflow-x-auto pb-3">
-        <div style={{ width: totalW, padding: '0 4px' }}>
+    <div className="space-y-5">
+      {/* Bracket wrapper with subtle gradient */}
+      <div className="rounded-xl border border-border/50 bg-gradient-to-br from-primary/[0.04] via-transparent to-amber-500/[0.03] p-3">
+        <div className="-mx-1 overflow-x-auto pb-2">
+          <div style={{ width: totalW, padding: '0 4px' }}>
 
-          {/* Round labels */}
-          <div className="mb-2 flex" style={{ height: 28 }}>
-            {stages.map((stage, idx) => (
-              <Fragment key={stage.key}>
-                {idx > 0 && <div style={{ width: CONN_W }} />}
-                <div className="flex items-center justify-center" style={{ width: COL_W }}>
-                  <span
-                    className={cn(
-                      'text-[10px] font-bold uppercase tracking-widest',
-                      stage.key === 'FINAL'
-                        ? 'text-amber-500'
-                        : 'text-muted-foreground/60',
-                    )}
-                  >
-                    {stage.label}
-                  </span>
-                </div>
-              </Fragment>
-            ))}
-          </div>
-
-          {/* Bracket body */}
-          <div className="flex" style={{ height: bracketH }}>
-            {stages.map((stage, stageIdx) => {
-              const stageMatches = byStage.get(stage.key) ?? [];
-              return (
+            {/* Round labels */}
+            <div className="mb-2 flex" style={{ height: 24 }}>
+              {stages.map((stage, idx) => (
                 <Fragment key={stage.key}>
-                  {stageIdx > 0 && (
-                    <Connector
-                      fromRoundIdx={stageIdx - 1}
-                      fromCount={stages[stageIdx - 1]!.count}
-                      bracketH={bracketH}
-                    />
-                  )}
-                  <div
-                    className="relative shrink-0"
-                    style={{ width: COL_W, height: bracketH }}
-                  >
-                    {Array.from({ length: stage.count }, (_, slotIdx) => (
-                      <BracketMatch
-                        key={slotIdx}
-                        match={stageMatches[slotIdx]}
-                        roundIdx={stageIdx}
-                        slotIdx={slotIdx}
-                      />
-                    ))}
+                  {idx > 0 && <div style={{ width: CONN_W }} />}
+                  <div className="flex items-center justify-center" style={{ width: COL_W }}>
+                    <span
+                      className={cn(
+                        'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest',
+                        stage.key === 'FINAL'
+                          ? 'bg-amber-500/15 text-amber-400'
+                          : 'text-muted-foreground/50',
+                      )}
+                    >
+                      {stage.key === 'FINAL' ? '🏆 ' : ''}{stage.label}
+                    </span>
                   </div>
                 </Fragment>
-              );
-            })}
+              ))}
+            </div>
+
+            {/* Bracket body */}
+            <div className="flex" style={{ height: bracketH }}>
+              {stages.map((stage, stageIdx) => {
+                const stageMatches = byStage.get(stage.key) ?? [];
+                const isFinal = stage.key === 'FINAL';
+                return (
+                  <Fragment key={stage.key}>
+                    {stageIdx > 0 && (
+                      <Connector
+                        fromRoundIdx={stageIdx - 1}
+                        fromCount={stages[stageIdx - 1]!.count}
+                        bracketH={bracketH}
+                      />
+                    )}
+                    <div
+                      className="relative shrink-0"
+                      style={{ width: COL_W, height: bracketH }}
+                    >
+                      {Array.from({ length: stage.count }, (_, slotIdx) => (
+                        <BracketMatch
+                          key={slotIdx}
+                          match={stageMatches[slotIdx]}
+                          roundIdx={stageIdx}
+                          slotIdx={slotIdx}
+                          isFinal={isFinal}
+                        />
+                      ))}
+                    </div>
+                  </Fragment>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
